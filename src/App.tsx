@@ -224,7 +224,7 @@ const NatureDoseApp = () => {
       <div className="pt-8">
         <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 pt-12 rounded-b-3xl shadow-lg sticky top-0 z-10">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold">自然時光</h1>
+            <h1 className="text-2xl font-bold">自然時光 Beta01</h1>
             <div className="flex items-center space-x-1 bg-black bg-opacity-20 px-3 py-1 rounded-full text-sm">{renderLeaves(natureScore)}</div>
           </div>
           <div className="flex items-center text-green-100 mb-2">
