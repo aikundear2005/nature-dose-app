@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, MapPin, Target, Leaf, Sun, Award, HelpCircle } from 'lucide-react';
+import { Play, Pause, MapPin, Target, Leaf, Sun, Award, HelpCircle, X } from 'lucide-react';
 
 const NatureDoseApp = () => {
   // --- 狀態管理 (State Management) ---
+  const [showWelcomeModal, setShowWelcomeModal] = useState(
+    !localStorage.getItem('natureDose_welcomeDismissed')
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [currentSession, setCurrentSession] = useState(0);
@@ -109,7 +112,9 @@ const NatureDoseApp = () => {
     last7Days.forEach(day => {
       if (recordsMap.has(day.date)) day.points = recordsMap.get(day.date);
     });
-    last7Days[6].points = todayTotal;
+    if (last7Days[6]) {
+        last7Days[6].points = todayTotal;
+    }
     setChartData(last7Days);
   }, [dailyRecords, todayTotal]);
 
@@ -128,9 +133,14 @@ const NatureDoseApp = () => {
     };
     if (currentSession >= 3) unlockAchievement('forest_bath');
     if (weeklyTotal >= weeklyGoal * 1.2 && weeklyGoal > 0) unlockAchievement('green_master');
-  }, [currentSession, weeklyTotal, weeklyGoal]);
+  }, [currentSession, weeklyTotal, weeklyGoal, achievements]);
 
   // --- 核心功能函式 ---
+  const handleDismissIntro = () => {
+    setShowWelcomeModal(false);
+    localStorage.setItem('natureDose_welcomeDismissed', 'true');
+  };
+  
   const toggleTracking = () => {
     setIsTracking(!isTracking);
     if (isTracking) setCurrentSession(0);
@@ -140,7 +150,7 @@ const NatureDoseApp = () => {
   const getNatureDataFromLocation = async (lat, lon) => {
     try {
       const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&accept-language=zh-TW`);
-      if (!response.ok) throw new Error(`API request failed, status: ${response.status}`);
+      if (!response.ok) throw new Error(`API request failed`);
       const data = await response.json();
       if (!data || data.error) throw new Error(data.error || 'Cannot parse location info');
       let score = 1; let env = '都市環境';
@@ -178,11 +188,13 @@ const NatureDoseApp = () => {
       if ('vibrate' in navigator) navigator.vibrate([50, 50, 50]);
     } catch (error) {
       let errorMessage = '無法取得位置';
-      switch (error.code) {
-        case 1: errorMessage = '位置權限被拒絕'; break;
-        case 2: errorMessage = '位置資訊無法取得'; break;
-        case 3: errorMessage = '定位逾時'; break;
-        default: errorMessage = `未知定位錯誤`;
+      if (error.code) {
+        switch (error.code) {
+          case 1: errorMessage = '位置權限被拒絕'; break;
+          case 2: errorMessage = '位置資訊無法取得'; break;
+          case 3: errorMessage = '定位逾時'; break;
+          default: errorMessage = `未知定位錯誤`;
+        }
       }
       setLocationError(errorMessage); setLocation('無法自動定位');
     } finally {
@@ -224,7 +236,7 @@ const NatureDoseApp = () => {
       <div className="pt-8">
         <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 pt-12 rounded-b-3xl shadow-lg sticky top-0 z-10">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold">自然時光 (Beta 0.1）</h1>
+            <h1 className="text-2xl font-bold">自然時光 (Beta01)</h1>
             <div className="flex items-center space-x-1 bg-black bg-opacity-20 px-3 py-1 rounded-full text-sm">{renderLeaves(natureScore)}</div>
           </div>
           <div className="flex items-center text-green-100 mb-2">
@@ -241,7 +253,29 @@ const NatureDoseApp = () => {
             <div className="text-green-200 text-sm opacity-80">目前活動時間</div>
           </div>
         </div>
+        
         <div className="p-4 md:p-6 space-y-6">
+          
+          {showWelcomeModal && (
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg p-6 border border-blue-200 relative">
+              <button onClick={handleDismissIntro} className="absolute top-3 right-3 text-gray-400 hover:text-gray-800 transition-colors" aria-label="關閉說明">
+                <X className="w-5 h-5" />
+              </button>
+              <div className="text-center mb-4">
+                <Leaf className="mx-auto w-8 h-8 text-green-500" />
+                <h2 className="text-xl font-bold text-gray-800 mt-2">為身心注入一劑「自然處方」</h2>
+              </div>
+              <div className="text-gray-700 space-y-3 text-sm">
+                <p>科學證實，短暫的戶外活動也能顯著降低壓力、提升專注力。陽光、空氣與綠意，是我們最好的營養品。</p>
+                <p className="font-semibold text-gray-800">「自然時光」將幫助您量化這份努力：</p>
+                <p className="text-center font-semibold text-lg my-2 p-3 bg-green-50 text-green-700 rounded-lg">
+                  累積積分 = 自然分數 × 分鐘數
+                </p>
+                <p>在高品質的環境中待越久，積分越高。讓我們一起，把健康的習慣，變成有趣的挑戰！</p>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-lg p-6">
             <div className="text-center mb-4">
               <div className="text-lg font-semibold text-gray-800 mb-2">環境品質</div>
@@ -255,6 +289,7 @@ const NatureDoseApp = () => {
               <span>{isTracking ? '暫停追蹤' : '開始追蹤'}</span>
             </button>
           </div>
+
           <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-lg p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center"><Sun className="w-5 h-5 mr-2 text-yellow-500" />今日統計</h3>
@@ -265,6 +300,7 @@ const NatureDoseApp = () => {
               <div className="text-sm text-gray-600 mt-1">戶外積分</div>
             </div>
           </div>
+
           <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-lg p-6">
              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center"><Target className="w-5 h-5 mr-2 text-blue-500" />本週進度</h3>
              <div className="mb-4">
@@ -288,6 +324,7 @@ const NatureDoseApp = () => {
                ))}
              </div>
            </div>
+
           <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-lg p-6 mb-20">
             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center"><Award className="w-5 h-5 mr-2 text-yellow-500" />成就系統</h3>
             <div className="space-y-3">
@@ -304,8 +341,10 @@ const NatureDoseApp = () => {
               ))}
             </div>
           </div>
+
         </div>
       </div>
+      
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}>
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
@@ -322,6 +361,31 @@ const NatureDoseApp = () => {
               </div>
             </div>
             <button onClick={() => setIsModalOpen(false)} className="mt-6 w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">我明白了</button>
+          </div>
+        </div>
+      )}
+      
+      {showWelcomeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm" onClick={handleDismissIntro}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={handleDismissIntro} className="absolute -top-2 -right-2 text-white bg-gray-700 rounded-full p-1 shadow-lg hover:bg-red-500 transition-colors" aria-label="關閉歡迎訊息">
+              <X className="w-6 h-6" />
+            </button>
+            <div className="text-center mb-4">
+              <Leaf className="mx-auto w-10 h-10 text-green-500" />
+              <h2 className="text-2xl font-bold text-gray-800 mt-2">歡迎使用「自然時光」</h2>
+            </div>
+            <div className="text-gray-700 space-y-4">
+              <div>
+                <h3 className="font-semibold text-lg">為身心注入一劑「自然處方」</h3>
+                <p className="text-sm mt-1">研究證實，接觸戶外能顯著降低壓力、提升專注力。這個 App 將幫助您量化這份努力。</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">獨特的「自然積分」</h3>
+                <p className="text-sm mt-1">在越綠意盎然的地方，您每分鐘獲得的積分就越高，激勵您去尋找更高品質的綠色空間！</p>
+              </div>
+            </div>
+            <button onClick={handleDismissIntro} className="mt-6 w-full bg-blue-500 text-white py-3 px-4 rounded-lg text-lg font-semibold hover:bg-blue-600 transition-colors active:scale-95">我知道了，開始使用！</button>
           </div>
         </div>
       )}
