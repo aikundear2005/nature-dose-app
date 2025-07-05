@@ -1,4 +1,3 @@
-import React from 'react';
 // 引入 Swiper 的 React 元件
 import { Swiper, SwiperSlide } from 'swiper/react';
 // 引入 Swiper 需要的模組，例如分頁(Pagination)

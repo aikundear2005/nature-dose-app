@@ -1,5 +1,5 @@
 import React from 'react';
-import { Leaf, Footprints } from 'lucide-react';
+import { Leaf, Footprints, CheckCircle } from 'lucide-react';
 
 type OnboardingProps = {
   onComplete: () => void;
@@ -7,47 +7,61 @@ type OnboardingProps = {
 
 const Onboarding = ({ onComplete }: OnboardingProps) => {
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-green-50 to-blue-50 z-50 flex flex-col justify-center items-center text-center p-8 font-sans">
-      <div className="max-w-md w-full">
-        {/* 第一行：大標題 */}
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-800 flex items-center justify-center">
-          <Leaf className="w-10 h-10 md:w-12 md:h-12 text-green-600 mr-3" />
-          歡迎使用自然時光
-        </h1>
+    // ✨ 修改重點: 我們還原 flex 佈局來做置中，並移除 overflow-y-auto
+    <div className="fixed inset-0 bg-gray-900 text-white z-50 flex flex-col items-center justify-center p-8 text-center">
+      <div className="max-w-md">
 
-        {/* 第二行：副標題 */}
-        <p className="text-xl md:text-2xl text-gray-600 mt-4">
-          給自己一點自然時光
-        </p>
-
-        {/* 第三到第五行：核心說明 */}
-        <div className="mt-8 text-lg text-gray-700 space-y-2">
-          <p>每天只需要...</p>
-          <p className="flex items-center justify-center font-semibold text-2xl text-green-700 my-3">
-            <Footprints className="w-7 h-7 mr-2" />
-            20分鐘戶外散步
-          </p>
-          <p>就能為身心帶來意想不到的改變。</p>
+        {/* 我們為每個區塊加上了特定的 data-test-id，方便在 CSS 中單獨調整間距 */}
+        <div data-test-id="onboarding-icon" className="mb-6">
+          <Leaf className="w-16 h-16 text-green-400 mx-auto" strokeWidth={1.5} />
+        </div>
+        
+        <div data-test-id="onboarding-title" className="mb-3">
+            <h1 className="text-4xl font-bold text-gray-100">給自己一點自然時光</h1>
+        </div>
+       
+        
+        <div data-test-id="onboarding-feature-box" className="my-8">
+          <div className="bg-gray-800 rounded-lg p-6">
+            <p className="text-gray-400 mb-4">每天只需要...</p>
+            <div className="flex items-center justify-center space-x-4">
+              <Footprints className="w-10 h-10 text-green-400" strokeWidth={2} />
+              <p className="text-3xl font-bold text-white">20分鐘戶外散步</p>
+            </div>
+          </div>
         </div>
 
-        {/* 第六到第九行：行動建議 */}
-        <div className="mt-8 text-base text-gray-500">
-          <p>簡單開始：</p>
-          <p className="mt-2">到附近走走</p>
-          <p>抬頭看看天空</p>
-          <p>呼吸新鮮空氣</p>
+        <div data-test-id="onboarding-description" className="mb-8">
+            <p className="text-gray-300 text-lg">就能為身心帶來意想不到的改變</p>
+        </div>
+        
+        <div data-test-id="onboarding-checklist" className="my-8">
+          <div className="space-y-4 text-left inline-block">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
+              <span className="text-lg text-gray-200">簡單開始，到附近走走</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
+              <span className="text-lg text-gray-200">抬頭看看天空</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
+              <span className="text-lg text-gray-200">呼吸新鮮空氣</span>
+            </div>
+          </div>
+        </div>
+        
+        <div data-test-id="onboarding-ready-text" className="mb-10">
+            <p className="text-xl text-gray-100 font-semibold">準備好了嗎？</p>
         </div>
 
-        {/* 第十行與按鈕 */}
-        <div className="mt-10">
-          <p className="text-lg text-gray-800 mb-4">準備好了嗎？</p>
-          <button
-            onClick={onComplete}
-            className="bg-blue-500 text-white py-3 px-10 rounded-full text-xl font-semibold hover:bg-blue-600 transition-colors active:scale-95 shadow-lg"
-          >
-            開始使用
-          </button>
-        </div>
+        <button
+          onClick={onComplete}
+          className="w-full max-w-xs mx-auto bg-green-600 text-white py-4 px-8 rounded-full text-xl font-semibold hover:bg-green-700 transition-colors active:scale-95 shadow-lg shadow-green-500/20"
+        >
+          開始使用
+        </button>
       </div>
     </div>
   );

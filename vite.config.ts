@@ -1,17 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
-import tailwindcss from 'tailwindcss' // <-- 新增
-import autoprefixer from 'autoprefixer' // <-- 新增
 
+// https://vitejs.dev/config/
 export default defineConfig({
-  // 在這裡新增 css 設定
-  css: {
-    postcss: {
-      plugins: [
-        tailwindcss,
-        autoprefixer,
-      ],
+  plugins: [react()],
+  server: {
+    proxy: {
+      // 將開頭為 /api 的請求，代理到 OpenStreetMap 伺服器
+      '/api': {
+        target: 'https://nominatim.openstreetmap.org',
+        changeOrigin: true, // 必須設為 true，才會正確代理
+        rewrite: (path) => path.replace(/^\/api/, ''), // 將路徑中的 /api 去掉再發送
+      },
     },
   },
-  plugins: [react()],
 })
