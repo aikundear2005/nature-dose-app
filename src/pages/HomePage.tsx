@@ -199,20 +199,25 @@ const HomePage = () => {
 
   // ✨ 這個函式也統一改用 Foursquare 來處理
   const getNatureDataFromLocation = async (lat: number, lon: number) => {
-     // 我們一樣用 Foursquare 的 nearby search，但只取最近的一個點來判斷當前環境
     const params = new URLSearchParams({
       ll: `${lat},${lon}`,
-      radius: '100', // 只搜尋最近 100 公尺
+      radius: '100',
       limit: '1'
     });
     const apiUrl = `/api/places/search?${params.toString()}`;
 
     try {
       const response = await fetch(apiUrl, { headers: { 'Authorization': foursquareApiKey, 'Accept': 'application/json' } });
-      if (!response.ok) throw new Error('API request failed');
+      
+      // ✨ 修正：加入詳細的錯誤日誌
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Foursquare API (getNatureData) request failed with status:', response.status, errorText);
+        throw new Error('API request failed');
+      }
+      
       const data = await response.json();
       
-      // 根據 Foursquare 的回傳來設定地點和自然分數
       const locationName = data.context?.neighborhood?.name || data.context?.locality?.name || data.context?.region?.name || '未知區域';
       setLocation(locationName);
 
@@ -220,11 +225,9 @@ const HomePage = () => {
       const mainCategory = data.results[0]?.categories[0];
       if(mainCategory) {
           const categoryId = mainCategory.id;
-          // 16000: Recreation (戶外與休閒)
           if (categoryId.toString().startsWith('16')) { 
               score = 4; env = '公園綠地';
           }
-          // 16019: Forest
           if (categoryId === 16019) {
               score = 5; env = '自然山林';
           }
@@ -237,41 +240,6 @@ const HomePage = () => {
       setNatureScore(2);
       setCurrentEnvironment('未知環境');
       setLocationError('無法從伺服器獲取地點資訊。');
-    }
-  };
-
-  const getCurrentLocation = async () => {
-    if (foursquareApiKey === 'YOUR_FOURSQUARE_API_KEY' || !foursquareApiKey) {
-        setLocationError('請先在程式碼中填入您的 Foursquare API 金鑰。');
-        return;
-    }
-    if (!('geolocation' in navigator)) { setLocationError('此裝置不支援定位'); return; }
-    setIsLoadingLocation(true); setLocationError('');
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true, timeout: 20000, maximumAge: 60000,
-        });
-      });
-      const { latitude, longitude } = position.coords;
-      await Promise.all([
-        getNatureDataFromLocation(latitude, longitude),
-        fetchNearbyPlaces(latitude, longitude)
-      ]);
-      if ('vibrate' in navigator) navigator.vibrate([50, 50, 50]);
-    } catch (error: any) {
-      let errorMessage = '無法取得位置';
-      if(error && typeof error === 'object' && 'code' in error){
-        switch (error.code) {
-          case 1: errorMessage = '位置權限被拒絕'; break;
-          case 2: errorMessage = '位置資訊無法取得'; break;
-          case 3: errorMessage = '定位逾時'; break;
-          default: errorMessage = `未知定位錯誤`;
-        }
-      }
-      setLocationError(errorMessage); setLocation('無法自動定位');
-    } finally {
-      setIsLoadingLocation(false);
     }
   };
   
