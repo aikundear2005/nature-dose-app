@@ -148,13 +148,12 @@ const HomePage = () => {
     setPlacesError('');
     setRealPlaces([]);
 
-    const query = 'park,gardens,forest';
+    const query = 'park,garden,forest,nature_reserve,recreation_ground,leisure';
     const limit = 5;
-    const radius = 5000;
+    const radius = 10000;
 
     const apiUrl = `/api/search.php?key=${locationIQApiKey}&q=${query}&lat=${lat}&lon=${lon}&radius=${radius}&format=json&accept-language=zh-TW&limit=${limit}`;
 
-    // ✨ 修正: 這裡的檢查條件應該永遠是 'YOUR_API_KEY'
     if (locationIQApiKey === 'YOUR_API_KEY') {
       setPlacesError('請先在程式碼中填入您的 LocationIQ API 金鑰。');
       setIsLoadingPlaces(false);
@@ -177,7 +176,9 @@ const HomePage = () => {
       }
       
       const transformedPlaces: Place[] = data.map((item: any) => {
-        const distance = Math.round(parseFloat(item.distance) * 1000); 
+        // ✨ 修改重點: 改為使用我們自己的 `calculateDistance` 函式來手動計算距離
+        const distance = calculateDistance(lat, lon, parseFloat(item.lat), parseFloat(item.lon));
+        
         return {
           id: item.place_id,
           name: item.display_name.split(',')[0],
