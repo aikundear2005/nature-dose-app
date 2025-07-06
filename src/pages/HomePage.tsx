@@ -145,12 +145,20 @@ const HomePage = () => {
     setPlacesError('');
     setRealPlaces([]);
 
-    // 使用最單純的 q=park 進行搜尋
-    const query = 'park'; 
+    const query = 'park';
     const limit = 10;
 
-    // 移除所有額外參數，只保留最核心的參數
-    const apiUrl = `/api/search.php?key=${locationIQApiKey}&q=${query}&lat=${lat}&lon=${lon}&format=json&accept-language=zh-TW&limit=${limit}`;
+    // ✨ 修正 #1: 我們將 viewbox (矩形範圍) 加回來，以強制限定搜尋區域
+    const viewbox_radius = 0.05; // 大約 5km
+    const viewbox = [
+      lon - viewbox_radius,
+      lat + viewbox_radius,
+      lon + viewbox_radius,
+      lat - viewbox_radius
+    ].join(',');
+
+    // ✨ 修正 #2: 建立結合了 q 和 viewbox 的正確 API 網址
+    const apiUrl = `/api/search.php?key=${locationIQApiKey}&q=${query}&viewbox=${viewbox}&bounded=1&format=json&accept-language=zh-TW&limit=${limit}`;
 
     if (locationIQApiKey === 'YOUR_API_KEY' || !locationIQApiKey) {
       setPlacesError('請先在程式碼中填入您的 LocationIQ API 金鑰。');
@@ -161,7 +169,6 @@ const HomePage = () => {
     try {
       const response = await fetch(apiUrl);
       if (!response.ok) {
-        console.error('API request failed with status:', response.status);
         throw new Error('地點伺服器錯誤或請求格式有誤。');
       }
       
@@ -171,6 +178,7 @@ const HomePage = () => {
         return;
       }
       
+      // 資料處理邏輯不變，因為 viewbox 不會回傳距離，我們仍需自己計算
       const transformedPlaces: Place[] = data.map((item: any) => {
         const distance = calculateDistance(lat, lon, parseFloat(item.lat), parseFloat(item.lon));
         return {
