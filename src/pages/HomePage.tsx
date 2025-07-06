@@ -145,10 +145,10 @@ const HomePage = () => {
     setPlacesError('');
     setRealPlaces([]);
 
-    // 請確認這裡是您自己的 Foursquare API 金鑰
+    // 🔴 請在這裡換上您自己的 Foursquare API 金鑰
     const apiKey = 'fsq33zqMPLkyEGsEeJqLOezzwN6Hze5gnZ4qP0Gi8O0AREM='; 
 
-    // Foursquare API 的參數
+    // Foursquare API 的正確參數
     const params = new URLSearchParams({
       ll: `${lat},${lon}`,
       radius: '2000', // 搜尋半徑 (公尺)
