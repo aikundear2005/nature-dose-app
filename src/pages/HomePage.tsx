@@ -15,7 +15,6 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
 };
 
 const HomePage = () => {
-  // (State 和 useEffect 保持不變，此處省略以保持簡潔)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
@@ -58,6 +57,7 @@ const HomePage = () => {
   const [lastSync, setLastSync] = useState(new Date());
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [locationError, setLocationError] = useState('');
+
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -73,6 +73,7 @@ const HomePage = () => {
       if (wakeLock) wakeLock.release();
     };
   }, [isTracking]);
+
   useEffect(() => {
     if (!isTracking) return;
     const interval = setInterval(() => {
@@ -84,11 +85,13 @@ const HomePage = () => {
     }, 60000);
     return () => clearInterval(interval);
   }, [isTracking, currentSession, natureScore]);
+
   useEffect(() => { localStorage.setItem('natureDose_todayTotal', JSON.stringify(todayTotal)); }, [todayTotal]);
   useEffect(() => { localStorage.setItem('natureDose_weeklyTotal', JSON.stringify(weeklyTotal)); }, [weeklyTotal]);
   useEffect(() => { localStorage.setItem('natureDose_dailyRecords', JSON.stringify(dailyRecords)); }, [dailyRecords]);
   useEffect(() => { if (lastVisitedDate) localStorage.setItem('natureDose_lastVisitedDate', lastVisitedDate); }, [lastVisitedDate]);
   useEffect(() => { localStorage.setItem('natureDose_achievements', JSON.stringify(achievements)); }, [achievements]);
+
   useEffect(() => {
     const getTodayString = () => new Date().toLocaleDateString('sv');
     const todayString = getTodayString();
@@ -100,6 +103,7 @@ const HomePage = () => {
     }
     setLastVisitedDate(todayString);
   }, []);
+
   useEffect(() => {
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
@@ -120,6 +124,7 @@ const HomePage = () => {
     }
     setChartData(last7Days);
   }, [dailyRecords, todayTotal]);
+
   useEffect(() => {
     const unlockAchievement = (achievementId: string) => {
       setAchievements(prevAchievements =>
@@ -137,10 +142,8 @@ const HomePage = () => {
     if (weeklyTotal >= weeklyGoal * 1.2 && weeklyGoal > 0) unlockAchievement('green_master');
   }, [currentSession, weeklyTotal, weeklyGoal, achievements, natureScore]);
 
-  // ✨ 請務必將 YOUR_FOURSQUARE_API_KEY 換成您自己的 Foursquare API 金鑰
-  const foursquareApiKey = 'fsq33zqMPLkyEGsEeJqLOezzwN6Hze5gnZ4qP0Gi8O0AREM='; 
+  const foursquareApiKey = 'YOUR_FOURSQUARE_API_KEY'; 
 
-  // ✨ 全新重寫的函式，使用 Foursquare API
   const fetchNearbyPlaces = async (lat: number, lon: number) => {
     setIsLoadingPlaces(true);
     setPlacesError('');
@@ -149,11 +152,17 @@ const HomePage = () => {
     const params = new URLSearchParams({
       ll: `${lat},${lon}`,
       radius: '2000',
-      categories: '16032', // 16032 是「公園」的 Foursquare 類別代碼
+      categories: '16032',
       limit: '10'
     });
     
     const apiUrl = `/api/places/search?${params.toString()}`;
+
+    if (foursquareApiKey === 'YOUR_FOURSQUARE_API_KEY' || !foursquareApiKey) {
+      setPlacesError('請先在程式碼中填入您的 Foursquare API 金鑰。');
+      setIsLoadingPlaces(false);
+      return;
+    }
 
     try {
       const response = await fetch(apiUrl, {
@@ -197,7 +206,6 @@ const HomePage = () => {
     }
   };
 
-  // ✨ 這個函式也統一改用 Foursquare 來處理
   const getNatureDataFromLocation = async (lat: number, lon: number) => {
     const params = new URLSearchParams({
       ll: `${lat},${lon}`,
@@ -208,8 +216,6 @@ const HomePage = () => {
 
     try {
       const response = await fetch(apiUrl, { headers: { 'Authorization': foursquareApiKey, 'Accept': 'application/json' } });
-      
-      // ✨ 修正：加入詳細的錯誤日誌
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Foursquare API (getNatureData) request failed with status:', response.status, errorText);
@@ -242,8 +248,43 @@ const HomePage = () => {
       setLocationError('無法從伺服器獲取地點資訊。');
     }
   };
+
+  // ✨ 這個函式就是之前遺失的
+  const getCurrentLocation = async () => {
+    if (foursquareApiKey === 'YOUR_FOURSQUARE_API_KEY' || !foursquareApiKey) {
+        setLocationError('請先在程式碼中填入您的 Foursquare API 金鑰。');
+        return;
+    }
+    if (!('geolocation' in navigator)) { setLocationError('此裝置不支援定位'); return; }
+    setIsLoadingLocation(true); setLocationError('');
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true, timeout: 20000, maximumAge: 60000,
+        });
+      });
+      const { latitude, longitude } = position.coords;
+      await Promise.all([
+        getNatureDataFromLocation(latitude, longitude),
+        fetchNearbyPlaces(latitude, longitude)
+      ]);
+      if ('vibrate' in navigator) navigator.vibrate([50, 50, 50]);
+    } catch (error: any) {
+      let errorMessage = '無法取得位置';
+      if(error && typeof error === 'object' && 'code' in error){
+        switch (error.code) {
+          case 1: errorMessage = '位置權限被拒絕'; break;
+          case 2: errorMessage = '位置資訊無法取得'; break;
+          case 3: errorMessage = '定位逾時'; break;
+          default: errorMessage = `未知定位錯誤`;
+        }
+      }
+      setLocationError(errorMessage); setLocation('無法自動定位');
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  };
   
-  // (其他所有 helper functions 和 JSX return 陳述式都保持不變)
   const handleTogglePlaceCard = (id: number) => {
     setExpandedPlaceId(prevId => (prevId === id ? null : id));
   };
@@ -272,7 +313,6 @@ const HomePage = () => {
   const renderLeaves = (score: number) => Array.from({ length: 5 }, (_, i) => (
     <Leaf key={i} className={`w-4 h-4 transition-colors ${i < score ? 'text-green-400 fill-current' : 'text-gray-500'}`} />
   ));
-
 
   return (
     <div className="max-w-md mx-auto bg-gray-900 text-white min-h-screen font-sans">
