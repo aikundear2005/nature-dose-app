@@ -138,7 +138,7 @@ const HomePage = () => {
   }, [currentSession, weeklyTotal, weeklyGoal, achievements, natureScore]);
 
   // ✨ 請務必將 YOUR_FOURSQUARE_API_KEY 換成您自己的 Foursquare API 金鑰
-  const foursquareApiKey = 'YOUR_FOURSQUARE_API_KEY'; 
+  const foursquareApiKey = 'fsq33zqMPLkyEGsEeJqLOezzwN6Hze5gnZ4qP0Gi8O0AREM='; 
 
   // ✨ 全新重寫的函式，使用 Foursquare API
   const fetchNearbyPlaces = async (lat: number, lon: number) => {
@@ -241,7 +241,7 @@ const HomePage = () => {
   };
 
   const getCurrentLocation = async () => {
-    if (foursquareApiKey === 'YOUR_FOURSQUARE_API_KEY' || !foursquareApiKey) {
+    if (foursquareApiKey === 'fsq33zqMPLkyEGsEeJqLOezzwN6Hze5gnZ4qP0Gi8O0AREM=' || !foursquareApiKey) {
         setLocationError('請先在程式碼中填入您的 Foursquare API 金鑰。');
         return;
     }
