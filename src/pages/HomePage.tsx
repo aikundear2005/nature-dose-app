@@ -149,7 +149,7 @@ const HomePage = () => {
     const limit = 10;
 
     // ✨ 修正 #1: 我們將 viewbox (矩形範圍) 加回來，以強制限定搜尋區域
-    const viewbox_radius = 0.05; // 大約 5km
+    const viewbox_radius = 0.02; // 大約 2km
     const viewbox = [
       lon - viewbox_radius,
       lat + viewbox_radius,
