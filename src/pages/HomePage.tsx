@@ -145,85 +145,64 @@ const HomePage = () => {
     setPlacesError('');
     setRealPlaces([]);
 
-    if (locationIQApiKey === 'YOUR_API_KEY' || !locationIQApiKey) {
-      setPlacesError('請先在程式碼中填入您的 LocationIQ API 金鑰。');
+    const apiKey = 'fsq33p1+Aqb9pm2RO9vj6N3OavpjKvLylW7+C1J+hRXG0Q8='; // 👈 請將此處換成您剛剛複製的 Foursquare API Key
+
+    // Foursquare API 的參數
+    const params = new URLSearchParams({
+      ll: `${lat},${lon}`,
+      radius: '2000', // 搜尋半徑 (公尺)
+      categories: '16032', // 16032 是 Foursquare API 中「公園」的類別代碼
+      limit: '10'
+    });
+    
+    const apiUrl = `/api/places/search?${params.toString()}`;
+
+    if (apiKey === 'fsq33p1+Aqb9pm2RO9vj6N3OavpjKvLylW7+C1J+hRXG0Q8=' || !apiKey) {
+      setPlacesError('請先在程式碼中填入您的 Foursquare API 金鑰。');
       setIsLoadingPlaces(false);
       return;
     }
 
     try {
-      // ✨ 我們要搜尋的關鍵字列表
-      const queries = ['park', 'garden', 'forest', 'nature_reserve'];
-      
-      // ✨ 為每一個關鍵字建立一個 API 請求，並用 try/catch 包裝，確保單一失敗不影響全局
-      const requests = queries.map(async (query) => {
-        try {
-          const viewbox_radius = 0.02; // 約 2km
-          const viewbox = [
-            lon - viewbox_radius,
-            lat + viewbox_radius,
-            lon + viewbox_radius,
-            lat - viewbox_radius
-          ].join(',');
-          const apiUrl = `/api/search.php?key=${locationIQApiKey}&q=${query}&viewbox=${viewbox}&bounded=1&format=json&accept-language=zh-TW&limit=10`;
-
-          const response = await fetch(apiUrl);
-          if (!response.ok) {
-            // 如果請求失敗，印出錯誤到 console，但回傳空陣列，不中斷其他請求
-            console.error(`API call for query '${query}' failed with status ${response.status}`);
-            return []; 
-          }
-          return await response.json();
-        } catch (error) {
-          console.error(`Error fetching for query '${query}':`, error);
-          return []; // 發生其他錯誤也回傳空陣列
+      // Foursquare 要求將金鑰放在請求的 Headers 中
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Authorization': apiKey,
+          'Accept': 'application/json'
         }
       });
 
-      // ✨ 等待所有（可能成功或失敗的）請求都完成
-      const results = await Promise.all(requests);
+      if (!response.ok) {
+        // 如果請求失敗，我們可以在 console 中看到更詳細的 status code
+        console.error('Foursquare API request failed with status:', response.status, await response.text());
+        throw new Error('地點伺服器錯誤或請求格式有誤。');
+      }
       
-      // 將所有成功請求回來的結果（陣列的陣列）合併為一個單一陣列
-      const allPlaces = results.flat();
-
-      if (!allPlaces || allPlaces.length === 0) {
-        setPlacesError('在您附近找不到任何符合的公園或綠地。');
+      const data = await response.json();
+      
+      if (!data.results || data.results.length === 0) {
+        setPlacesError('在您附近找不到符合的公園。');
         return;
       }
       
-      // 去除重複的地點
-      const uniquePlaces = Array.from(new Map(allPlaces.map(item => [item.place_id, item])).values());
-
-      // 過濾掉不想要的結果（例如「里」）
-      const blacklistedNameKeywords = ['里', '鄰'];
-      const filteredData = uniquePlaces.filter((item: any) => {
-        const name = item.name || item.display_name.split(',')[0];
-        return !blacklistedNameKeywords.some(keyword => name.includes(keyword));
-      });
-      
-      if (filteredData.length === 0) {
-        setPlacesError('過濾後，在您附近找不到符合的公園或綠地。');
-        return;
-      }
-
-      const transformedPlaces: Place[] = filteredData.map((item: any) => {
-        const distance = calculateDistance(lat, lon, parseFloat(item.lat), parseFloat(item.lon));
+      // 將 Foursquare 回傳的資料轉換成我們需要的 Place[] 格式
+      const transformedPlaces: Place[] = data.results.map((item: any) => {
         return {
-          id: item.place_id,
-          name: item.name || item.display_name.split(',')[0],
-          distance: distance,
-          walkTime: Math.round(distance / 80),
+          id: item.fsq_id,
+          name: item.name,
+          distance: item.distance, // Foursquare 直接提供距離 (公尺)
+          walkTime: Math.round(item.distance / 80),
           features: [],
-          description: item.type,
+          description: item.categories[0]?.name || '戶外景點',
           openHours: '請查詢官方資訊',
           terrain: '未知',
         };
-      }).sort((a: Place, b: Place) => a.distance - b.distance);
+      });
 
-      setRealPlaces(transformedPlaces.slice(0, 10));
+      setRealPlaces(transformedPlaces);
 
     } catch (error: any) {
-      console.error("Main fetch process error:", error);
+      console.error("Fetch nearby places error:", error);
       setPlacesError(error.message || '抓取附近地點時發生未知錯誤。');
     } finally {
       setIsLoadingPlaces(false);
