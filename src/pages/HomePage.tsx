@@ -149,47 +149,54 @@ const HomePage = () => {
     setIsLoadingPlaces(true);
     setPlacesError('');
     setRealPlaces([]);
-    const query = encodeURIComponent('公園,花園,綠地');
+
+    // ✨ 修改: 準備 LocationIQ 需要的參數
+    const apiKey = 'pk.e6c401ca5767b1463370f1ce5e2a916fYOUR_API_KEY'; // 👈 請將 'YOUR_API_KEY' 換成您剛剛複製的 Access Token
+    const query = 'park,gardens,forest'; // 搜尋關鍵字
     const limit = 5;
-    const viewbox_radius = 0.05;
-    const viewbox = [
-      lon - viewbox_radius,
-      lat + viewbox_radius,
-      lon + viewbox_radius,
-      lat - viewbox_radius
-    ].join(',');
-    const apiUrl = `/api/search?q=${query}&format=jsonv2&limit=${limit}&viewbox=${viewbox}&bounded=1`;
+    const radius = 5000; // 搜尋半徑 (公尺)
+
+    // ✨ 修改: 使用 LocationIQ 的 API 網址格式
+    const apiUrl = `/api/search.php?key=${apiKey}&q=${query}&lat=${lat}&lon=${lon}&radius=${radius}&format=json&accept-language=zh-TW&limit=${limit}`;
+
+    // 檢查 API Key 是否已填寫
+    if (apiKey === 'pk.e6c401ca5767b1463370f1ce5e2a916f') {
+      setPlacesError('請先在程式碼中填入您的 LocationIQ API 金鑰。');
+      setIsLoadingPlaces(false);
+      return;
+    }
+
     try {
-      const response = await fetch(apiUrl, {
-        headers: {
-          'User-Agent': 'NatureDoseApp/1.0 (https://your-app-website.com)'
-        }
-      });
+      // 請求部分保持不變
+      const response = await fetch(apiUrl);
       if (!response.ok) {
-        if (response.status === 503) {
-          throw new Error('地點伺服器目前忙碌中，請稍後再試。');
-        }
-        throw new Error('無法連接到地點伺服器');
+        throw new Error('地點伺服器錯誤，請稍後再試。');
       }
+      
       const data = await response.json();
       if (!data || data.length === 0) {
         setPlacesError('在您附近找不到符合的地點。');
         return;
       }
+      
+      // ✨ 修改: 資料轉換邏輯微調以適應 LocationIQ 的回傳格式
       const transformedPlaces: Place[] = data.map((item: any) => {
-        const distance = calculateDistance(lat, lon, parseFloat(item.lat), parseFloat(item.lon));
+        // LocationIQ 直接提供距離，不需我們自己計算
+        const distance = Math.round(parseFloat(item.distance));
         return {
           id: item.place_id,
           name: item.display_name.split(',')[0],
           distance: distance,
           walkTime: Math.round(distance / 80),
           features: [],
-          description: item.category,
+          description: item.type, // 使用 item.type 作為特色
           openHours: '請查詢官方資訊',
           terrain: '未知',
         };
       }).sort((a: Place, b: Place) => a.distance - b.distance);
+
       setRealPlaces(transformedPlaces);
+
     } catch (error: any) {
       console.error("Fetch nearby places error:", error);
       setPlacesError(error.message || '抓取附近地點時發生未知錯誤。');
