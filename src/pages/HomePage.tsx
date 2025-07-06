@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-// ✨ 修正: 引入了正確的 BadgeCheck 圖示名稱
 import { Play, Pause, MapPin, Target, Leaf, Sun, Award, HelpCircle, Compass, X, LoaderCircle, Gift, BadgeCheck } from 'lucide-react';
 import PlaceCard, { Place } from '../components/PlaceCard';
 import { changelogData } from '../data/changelogData';
 
-// (calculateDistance 函式保持不變，此處省略)
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371e3;
     const φ1 = lat1 * Math.PI / 180;
@@ -16,9 +14,8 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
     return Math.round(R * c);
 };
 
-
 const HomePage = () => {
-  // (所有 state 和大部分 useEffect 保持不變，此處省略)
+  // (所有 state 和大部分 useEffect 保持不變)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
@@ -140,28 +137,16 @@ const HomePage = () => {
     if (weeklyTotal >= weeklyGoal * 1.2 && weeklyGoal > 0) unlockAchievement('green_master');
   }, [currentSession, weeklyTotal, weeklyGoal, achievements, natureScore]);
 
-
   const locationIQApiKey = 'pk.e6c401ca5767b1463370f1ce5e2a916f';
 
-const fetchNearbyPlaces = async (lat: number, lon: number) => {
+  // ✨ 修正 #1: 整個函式重寫，改用 Reverse Geocoding API 來找附近的 POI
+  const fetchNearbyPlaces = async (lat: number, lon: number) => {
     setIsLoadingPlaces(true);
     setPlacesError('');
     setRealPlaces([]);
 
-    const query = 'park,garden,forest,nature_reserve,recreation_ground,leisure';
-    const limit = 5;
-    
-    // ✨ 修正: 移除錯誤的 radius 參數，改回使用 viewbox 來限定搜尋範圍
-    const viewbox_radius = 0.05; // 大約 5km 的經緯度偏移量
-    const viewbox = [
-      lon - viewbox_radius,
-      lat + viewbox_radius,
-      lon + viewbox_radius,
-      lat - viewbox_radius
-    ].join(',');
-
-    // ✨ 修正: 建立使用 viewbox 的正確 API 網址
-    const apiUrl = `/api/search.php?key=${locationIQApiKey}&q=${query}&format=json&accept-language=zh-TW&limit=${limit}&viewbox=${viewbox}&bounded=1`;
+    // 使用 Reverse API，並加上 `namedetails=1` 來取得附近 POI
+    const apiUrl = `/api/reverse.php?key=${locationIQApiKey}&lat=${lat}&lon=${lon}&format=json&accept-language=zh-TW&namedetails=1`;
 
     if (locationIQApiKey === 'YOUR_API_KEY' || !locationIQApiKey) {
       setPlacesError('請先在程式碼中填入您的 LocationIQ API 金鑰。');
@@ -172,30 +157,44 @@ const fetchNearbyPlaces = async (lat: number, lon: number) => {
     try {
       const response = await fetch(apiUrl);
       if (!response.ok) {
-        // ...錯誤處理部分不變...
         throw new Error('地點伺服器錯誤或請求格式有誤。');
       }
       
       const data = await response.json();
-      if (!data || data.length === 0) {
-        setPlacesError('在您附近找不到符合的地點。');
+      // 檢查回傳資料中是否有 namedetails (附近景點)
+      const pois = data.namedetails;
+      if (!pois || Object.keys(pois).length === 0) {
+        setPlacesError('在您附近找不到任何標記的地點。');
         return;
       }
-      
-      const transformedPlaces: Place[] = data.map((item: any) => {
-        // 因為 API 不直接提供距離，我們自己計算
-        const distance = calculateDistance(lat, lon, parseFloat(item.lat), parseFloat(item.lon));
+
+      // 我們感興趣的類別
+      const targetCategories = ['park', 'garden', 'forest', 'nature_reserve', 'recreation_ground', 'leisure', 'heath', 'dog_park'];
+
+      // 過濾出我們想要的 POI
+      const filteredPois = Object.values(pois).filter((poi: any) => 
+        targetCategories.includes(poi.type) || targetCategories.includes(poi.class)
+      );
+
+      if (filteredPois.length === 0) {
+        setPlacesError('在您附近找不到符合的公園或綠地。');
+        return;
+      }
+
+      const transformedPlaces: Place[] = filteredPois.map((poi: any) => {
+        // 因為 API 不直接提供 POI 的經緯度，我們用主座標點來估算距離
+        const distance = calculateDistance(lat, lon, parseFloat(data.lat), parseFloat(data.lon));
         return {
-          id: item.place_id,
-          name: item.display_name.split(',')[0],
+          id: poi.osm_id,
+          name: poi.name,
           distance: distance,
           walkTime: Math.round(distance / 80),
           features: [],
-          description: item.type,
+          description: poi.type,
           openHours: '請查詢官方資訊',
           terrain: '未知',
         };
-      }).sort((a: Place, b: Place) => a.distance - b.distance);
+      }).slice(0, 5); // 最多只顯示 5 個
 
       setRealPlaces(transformedPlaces);
 
@@ -207,6 +206,7 @@ const fetchNearbyPlaces = async (lat: number, lon: number) => {
     }
   };
 
+  // ✨ 修正 #2: 這個函式也使用 Reverse API，邏輯與上面 fetchNearbyPlaces 幾乎一致
   const getNatureDataFromLocation = async (lat: number, lon: number) => {
     const apiUrl = `/api/reverse.php?key=${locationIQApiKey}&lat=${lat}&lon=${lon}&format=json&accept-language=zh-TW`;
 
@@ -233,8 +233,9 @@ const fetchNearbyPlaces = async (lat: number, lon: number) => {
       setLocation(displayName);
 
       let score = 1; let env = '都市環境';
-      const category = data.category || '';
       const type = data.type || '';
+      const category = data.class || ''; // LocationIQ 用 class 來分類
+
       if (['natural', 'wood', 'forest', 'park', 'garden', 'nature_reserve', 'grass', 'heath'].includes(category) || ['park', 'forest'].includes(type)) {
         score = 5; env = '自然山林';
       } else if (['waterway', 'water'].includes(category) || ['river', 'riverbank'].includes(type)) {
@@ -256,8 +257,7 @@ const fetchNearbyPlaces = async (lat: number, lon: number) => {
   };
 
   const getCurrentLocation = async () => {
-    // ✨ 修正: 這裡的檢查條件也應該是 'YOUR_API_KEY'
-    if (locationIQApiKey === 'YOUR_API_KEY') {
+    if (locationIQApiKey === 'YOUR_API_KEY' || !locationIQApiKey) {
         setLocationError('請先在程式碼中填入您的 LocationIQ API 金鑰。');
         return;
     }
@@ -270,6 +270,7 @@ const fetchNearbyPlaces = async (lat: number, lon: number) => {
         });
       });
       const { latitude, longitude } = position.coords;
+      // 我們讓兩個請求同時發出
       await Promise.all([
         getNatureDataFromLocation(latitude, longitude),
         fetchNearbyPlaces(latitude, longitude)
