@@ -15,7 +15,7 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
 };
 
 const HomePage = () => {
-  // (所有 state 和大部分 useEffect 保持不變)
+  // (State 和 useEffect 保持不變，此處省略以保持簡潔)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
@@ -137,45 +137,35 @@ const HomePage = () => {
     if (weeklyTotal >= weeklyGoal * 1.2 && weeklyGoal > 0) unlockAchievement('green_master');
   }, [currentSession, weeklyTotal, weeklyGoal, achievements, natureScore]);
 
-  const locationIQApiKey = 'pk.e6c401ca5767b1463370f1ce5e2a916f';
+  // ✨ 請務必將 YOUR_FOURSQUARE_API_KEY 換成您自己的 Foursquare API 金鑰
+  const foursquareApiKey = 'YOUR_FOURSQUARE_API_KEY'; 
 
-  // ✨ 修正 #1: 整個函式重寫，改用 Reverse Geocoding API 來找附近的 POI
+  // ✨ 全新重寫的函式，使用 Foursquare API
   const fetchNearbyPlaces = async (lat: number, lon: number) => {
     setIsLoadingPlaces(true);
     setPlacesError('');
     setRealPlaces([]);
 
-    // 🔴 請在這裡換上您自己的 Foursquare API 金鑰
-    const apiKey = 'fsq33zqMPLkyEGsEeJqLOezzwN6Hze5gnZ4qP0Gi8O0AREM='; 
-
-    // Foursquare API 的正確參數
     const params = new URLSearchParams({
       ll: `${lat},${lon}`,
-      radius: '2000', // 搜尋半徑 (公尺)
-      categories: '16032', // 16032 是「公園」的類別代碼
+      radius: '2000',
+      categories: '16032', // 16032 是「公園」的 Foursquare 類別代碼
       limit: '10'
     });
     
-    // ✨ 正確的 Foursquare API 路徑
     const apiUrl = `/api/places/search?${params.toString()}`;
 
-    if (apiKey === 'fsq33zqMPLkyEGsEeJqLOezzwN6Hze5gnZ4qP0Gi8O0AREM=' || !apiKey) {
-      setPlacesError('請先在程式碼中填入您的 Foursquare API 金鑰。');
-      setIsLoadingPlaces(false);
-      return;
-    }
-
     try {
-      // ✨ Foursquare 要求將金鑰放在請求的 Headers 中
       const response = await fetch(apiUrl, {
         headers: {
-          'Authorization': apiKey,
+          'Authorization': foursquareApiKey,
           'Accept': 'application/json'
         }
       });
 
       if (!response.ok) {
-        console.error('Foursquare API request failed with status:', response.status, await response.text());
+        const errorText = await response.text();
+        console.error('Foursquare API request failed with status:', response.status, errorText);
         throw new Error('地點伺服器錯誤或請求格式有誤。');
       }
       
@@ -186,18 +176,16 @@ const HomePage = () => {
         return;
       }
       
-      const transformedPlaces: Place[] = data.results.map((item: any) => {
-        return {
-          id: item.fsq_id,
-          name: item.name,
-          distance: item.distance, // Foursquare 直接提供距離 (公尺)
-          walkTime: Math.round(item.distance / 80),
-          features: [],
-          description: item.categories[0]?.name || '戶外景點',
-          openHours: '請查詢官方資訊',
-          terrain: '未知',
-        };
-      });
+      const transformedPlaces: Place[] = data.results.map((item: any) => ({
+        id: item.fsq_id,
+        name: item.name,
+        distance: item.distance,
+        walkTime: Math.round(item.distance / 80),
+        features: [],
+        description: item.categories[0]?.name || '戶外景點',
+        openHours: '請查詢官方資訊',
+        terrain: '未知',
+      }));
 
       setRealPlaces(transformedPlaces);
 
@@ -209,92 +197,37 @@ const HomePage = () => {
     }
   };
 
-      // --- ✨ 新增：資料過濾邏輯 ---
-      const blacklistedNameKeywords = ['里', '鄰', '閒置土地'];
-      const whitelistedTypes = ['park', 'garden', 'forest', 'nature_reserve', 'dog_park', 'recreation_ground'];
-
-      const filteredData = data.filter((item: any) => {
-        const name = item.name || item.display_name.split(',')[0];
-        const type = item.type;
-
-        // 規則一：如果名稱包含黑名單關鍵字，就排除
-        if (blacklistedNameKeywords.some(keyword => name.includes(keyword))) {
-          return false;
-        }
-
-        // 規則二：地點的類別必須在我們的白名單中
-        return whitelistedTypes.includes(type);
-      });
-
-      if (filteredData.length === 0) {
-        setPlacesError('過濾後，在您附近找不到符合的公園或綠地。');
-        return;
-      }
-      // --- 過濾邏輯結束 ---
-      
-      // ✨ 修改：使用過濾後的 `filteredData` 來建立卡片
-      const transformedPlaces: Place[] = filteredData.map((item: any) => {
-        const distance = calculateDistance(lat, lon, parseFloat(item.lat), parseFloat(item.lon));
-        return {
-          id: item.place_id,
-          name: item.name || item.display_name.split(',')[0],
-          distance: distance,
-          walkTime: Math.round(distance / 80),
-          features: [],
-          description: item.type,
-          openHours: '請查詢官方資訊',
-          terrain: '未知',
-        };
-      }).sort((a: Place, b: Place) => a.distance - b.distance);
-
-      setRealPlaces(transformedPlaces);
-
-    } catch (error: any) {
-      console.error("Fetch nearby places error:", error);
-      setPlacesError(error.message || '抓取附近地點時發生未知錯誤。');
-    } finally {
-      setIsLoadingPlaces(false);
-    }
-  };
-
-  // ✨ 修正 #2: 這個函式也使用 Reverse API，邏輯與上面 fetchNearbyPlaces 幾乎一致
+  // ✨ 這個函式也統一改用 Foursquare 來處理
   const getNatureDataFromLocation = async (lat: number, lon: number) => {
-    const apiUrl = `/api/reverse.php?key=${locationIQApiKey}&lat=${lat}&lon=${lon}&format=json&accept-language=zh-TW`;
+     // 我們一樣用 Foursquare 的 nearby search，但只取最近的一個點來判斷當前環境
+    const params = new URLSearchParams({
+      ll: `${lat},${lon}`,
+      radius: '100', // 只搜尋最近 100 公尺
+      limit: '1'
+    });
+    const apiUrl = `/api/places/search?${params.toString()}`;
 
     try {
-      const response = await fetch(apiUrl);
-      if (!response.ok) throw new Error(`API request failed`);
+      const response = await fetch(apiUrl, { headers: { 'Authorization': foursquareApiKey, 'Accept': 'application/json' } });
+      if (!response.ok) throw new Error('API request failed');
       const data = await response.json();
-      if (!data || data.error) throw new Error(data.error || 'Cannot parse location info');
+      
+      // 根據 Foursquare 的回傳來設定地點和自然分數
+      const locationName = data.context?.neighborhood?.name || data.context?.locality?.name || data.context?.region?.name || '未知區域';
+      setLocation(locationName);
 
-      const address = data.address || {};
-      const district = address.city_district || address.suburb || address.county;
-      const village = address.village || address.neighbourhood;
-
-      const locationParts = [];
-      if (district) locationParts.push(district);
-      if (village) locationParts.push(village);
-
-      let displayName;
-      if (locationParts.length > 0) {
-        displayName = locationParts.join('，');
-      } else {
-        displayName = address.city || address.county || '未知區域';
-      }
-      setLocation(displayName);
-
-      let score = 1; let env = '都市環境';
-      const type = data.type || '';
-      const category = data.class || ''; // LocationIQ 用 class 來分類
-
-      if (['natural', 'wood', 'forest', 'park', 'garden', 'nature_reserve', 'grass', 'heath'].includes(category) || ['park', 'forest'].includes(type)) {
-        score = 5; env = '自然山林';
-      } else if (['waterway', 'water'].includes(category) || ['river', 'riverbank'].includes(type)) {
-        score = 4; env = '河岸水域';
-      } else if (['pitch', 'stadium'].includes(type)) {
-        score = 3; env = '校園綠地';
-      } else if (['road', 'building', 'residential'].includes(category)) {
-        score = 2; env = '街道社區';
+      let score = 2; let env = '街道社區';
+      const mainCategory = data.results[0]?.categories[0];
+      if(mainCategory) {
+          const categoryId = mainCategory.id;
+          // 16000: Recreation (戶外與休閒)
+          if (categoryId.toString().startsWith('16')) { 
+              score = 4; env = '公園綠地';
+          }
+          // 16019: Forest
+          if (categoryId === 16019) {
+              score = 5; env = '自然山林';
+          }
       }
       setNatureScore(score);
       setCurrentEnvironment(env);
@@ -308,8 +241,8 @@ const HomePage = () => {
   };
 
   const getCurrentLocation = async () => {
-    if (locationIQApiKey === 'YOUR_API_KEY' || !locationIQApiKey) {
-        setLocationError('請先在程式碼中填入您的 LocationIQ API 金鑰。');
+    if (foursquareApiKey === 'YOUR_FOURSQUARE_API_KEY' || !foursquareApiKey) {
+        setLocationError('請先在程式碼中填入您的 Foursquare API 金鑰。');
         return;
     }
     if (!('geolocation' in navigator)) { setLocationError('此裝置不支援定位'); return; }
@@ -321,7 +254,6 @@ const HomePage = () => {
         });
       });
       const { latitude, longitude } = position.coords;
-      // 我們讓兩個請求同時發出
       await Promise.all([
         getNatureDataFromLocation(latitude, longitude),
         fetchNearbyPlaces(latitude, longitude)
@@ -343,7 +275,7 @@ const HomePage = () => {
     }
   };
   
-  // (其他功能函式保持不變)
+  // (其他所有 helper functions 和 JSX return 陳述式都保持不變)
   const handleTogglePlaceCard = (id: number) => {
     setExpandedPlaceId(prevId => (prevId === id ? null : id));
   };
