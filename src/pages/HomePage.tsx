@@ -145,21 +145,12 @@ const HomePage = () => {
     setPlacesError('');
     setRealPlaces([]);
 
-    // ✨ 修正 #1: 改用 'tag' 參數來搜尋類別，這是最關鍵的修正
-    const tags = 'park,garden,forest,nature_reserve,recreation_ground,leisure';
-    const limit = 10; // 稍微增加搜尋結果的數量，以便過濾
+    // 使用最單純的 q=park 進行搜尋
+    const query = 'park'; 
+    const limit = 10;
 
-    // ✨ 修正 #2: 重新使用 viewbox 來限定搜尋範圍
-    const viewbox_radius = 0.05; // 大約 5km
-    const viewbox = [
-      lon - viewbox_radius,
-      lat + viewbox_radius,
-      lon + viewbox_radius,
-      lat - viewbox_radius
-    ].join(',');
-
-    // ✨ 修正 #3: 建立完全正確的 API 請求網址，移除 q 參數，加入 tag 參數
-    const apiUrl = `/api/search.php?key=${locationIQApiKey}&tag=${tags}&viewbox=${viewbox}&bounded=1&format=json&accept-language=zh-TW&limit=${limit}`;
+    // 移除所有額外參數，只保留最核心的參數
+    const apiUrl = `/api/search.php?key=${locationIQApiKey}&q=${query}&lat=${lat}&lon=${lon}&format=json&accept-language=zh-TW&limit=${limit}`;
 
     if (locationIQApiKey === 'YOUR_API_KEY' || !locationIQApiKey) {
       setPlacesError('請先在程式碼中填入您的 LocationIQ API 金鑰。');
@@ -170,21 +161,21 @@ const HomePage = () => {
     try {
       const response = await fetch(apiUrl);
       if (!response.ok) {
+        console.error('API request failed with status:', response.status);
         throw new Error('地點伺服器錯誤或請求格式有誤。');
       }
       
       const data = await response.json();
       if (!data || data.length === 0) {
-        setPlacesError('在您附近找不到符合的公園或綠地。');
+        setPlacesError('在您附近找不到符合的「公園」。');
         return;
       }
       
       const transformedPlaces: Place[] = data.map((item: any) => {
-        // ✨ 修正 #4: 因為 search.php 不回傳距離，我們必須自己計算
         const distance = calculateDistance(lat, lon, parseFloat(item.lat), parseFloat(item.lon));
         return {
           id: item.place_id,
-          name: item.name || item.display_name.split(',')[0], // 優先使用 name 欄位
+          name: item.name || item.display_name.split(',')[0],
           distance: distance,
           walkTime: Math.round(distance / 80),
           features: [],
