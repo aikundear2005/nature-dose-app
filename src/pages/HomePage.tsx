@@ -145,11 +145,10 @@ const HomePage = () => {
     setPlacesError('');
     setRealPlaces([]);
 
-    const query = 'park';
-    const limit = 10;
+    const query = 'park,garden,forest,nature_reserve,recreation_ground,leisure';
+    const limit = 20; // 稍微增加 API 回傳的數量，以便有更多結果可以過濾
 
-    // ✨ 修正 #1: 我們將 viewbox (矩形範圍) 加回來，以強制限定搜尋區域
-    const viewbox_radius = 0.02; // 大約 2km
+    const viewbox_radius = 0.02; // 約 2km
     const viewbox = [
       lon - viewbox_radius,
       lat + viewbox_radius,
@@ -157,7 +156,6 @@ const HomePage = () => {
       lat - viewbox_radius
     ].join(',');
 
-    // ✨ 修正 #2: 建立結合了 q 和 viewbox 的正確 API 網址
     const apiUrl = `/api/search.php?key=${locationIQApiKey}&q=${query}&viewbox=${viewbox}&bounded=1&format=json&accept-language=zh-TW&limit=${limit}`;
 
     if (locationIQApiKey === 'YOUR_API_KEY' || !locationIQApiKey) {
@@ -174,12 +172,35 @@ const HomePage = () => {
       
       const data = await response.json();
       if (!data || data.length === 0) {
-        setPlacesError('在您附近找不到符合的「公園」。');
+        setPlacesError('在您附近找不到任何標記的地點。');
         return;
       }
+
+      // --- ✨ 新增：資料過濾邏輯 ---
+      const blacklistedNameKeywords = ['里', '鄰', '閒置土地'];
+      const whitelistedTypes = ['park', 'garden', 'forest', 'nature_reserve', 'dog_park', 'recreation_ground'];
+
+      const filteredData = data.filter((item: any) => {
+        const name = item.name || item.display_name.split(',')[0];
+        const type = item.type;
+
+        // 規則一：如果名稱包含黑名單關鍵字，就排除
+        if (blacklistedNameKeywords.some(keyword => name.includes(keyword))) {
+          return false;
+        }
+
+        // 規則二：地點的類別必須在我們的白名單中
+        return whitelistedTypes.includes(type);
+      });
+
+      if (filteredData.length === 0) {
+        setPlacesError('過濾後，在您附近找不到符合的公園或綠地。');
+        return;
+      }
+      // --- 過濾邏輯結束 ---
       
-      // 資料處理邏輯不變，因為 viewbox 不會回傳距離，我們仍需自己計算
-      const transformedPlaces: Place[] = data.map((item: any) => {
+      // ✨ 修改：使用過濾後的 `filteredData` 來建立卡片
+      const transformedPlaces: Place[] = filteredData.map((item: any) => {
         const distance = calculateDistance(lat, lon, parseFloat(item.lat), parseFloat(item.lon));
         return {
           id: item.place_id,
