@@ -145,8 +145,21 @@ const HomePage = () => {
     setPlacesError('');
     setRealPlaces([]);
 
-    // 使用 Reverse API，並加上 `namedetails=1` 來取得附近 POI
-    const apiUrl = `/api/reverse.php?key=${locationIQApiKey}&lat=${lat}&lon=${lon}&format=json&accept-language=zh-TW&namedetails=1`;
+    // ✨ 修正 #1: 改用 'tag' 參數來搜尋類別，這是最關鍵的修正
+    const tags = 'park,garden,forest,nature_reserve,recreation_ground,leisure';
+    const limit = 10; // 稍微增加搜尋結果的數量，以便過濾
+
+    // ✨ 修正 #2: 重新使用 viewbox 來限定搜尋範圍
+    const viewbox_radius = 0.05; // 大約 5km
+    const viewbox = [
+      lon - viewbox_radius,
+      lat + viewbox_radius,
+      lon + viewbox_radius,
+      lat - viewbox_radius
+    ].join(',');
+
+    // ✨ 修正 #3: 建立完全正確的 API 請求網址，移除 q 參數，加入 tag 參數
+    const apiUrl = `/api/search.php?key=${locationIQApiKey}&tag=${tags}&viewbox=${viewbox}&bounded=1&format=json&accept-language=zh-TW&limit=${limit}`;
 
     if (locationIQApiKey === 'YOUR_API_KEY' || !locationIQApiKey) {
       setPlacesError('請先在程式碼中填入您的 LocationIQ API 金鑰。');
@@ -161,40 +174,25 @@ const HomePage = () => {
       }
       
       const data = await response.json();
-      // 檢查回傳資料中是否有 namedetails (附近景點)
-      const pois = data.namedetails;
-      if (!pois || Object.keys(pois).length === 0) {
-        setPlacesError('在您附近找不到任何標記的地點。');
-        return;
-      }
-
-      // 我們感興趣的類別
-      const targetCategories = ['park', 'garden', 'forest', 'nature_reserve', 'recreation_ground', 'leisure', 'heath', 'dog_park'];
-
-      // 過濾出我們想要的 POI
-      const filteredPois = Object.values(pois).filter((poi: any) => 
-        targetCategories.includes(poi.type) || targetCategories.includes(poi.class)
-      );
-
-      if (filteredPois.length === 0) {
+      if (!data || data.length === 0) {
         setPlacesError('在您附近找不到符合的公園或綠地。');
         return;
       }
-
-      const transformedPlaces: Place[] = filteredPois.map((poi: any) => {
-        // 因為 API 不直接提供 POI 的經緯度，我們用主座標點來估算距離
-        const distance = calculateDistance(lat, lon, parseFloat(data.lat), parseFloat(data.lon));
+      
+      const transformedPlaces: Place[] = data.map((item: any) => {
+        // ✨ 修正 #4: 因為 search.php 不回傳距離，我們必須自己計算
+        const distance = calculateDistance(lat, lon, parseFloat(item.lat), parseFloat(item.lon));
         return {
-          id: poi.osm_id,
-          name: poi.name,
+          id: item.place_id,
+          name: item.name || item.display_name.split(',')[0], // 優先使用 name 欄位
           distance: distance,
           walkTime: Math.round(distance / 80),
           features: [],
-          description: poi.type,
+          description: item.type,
           openHours: '請查詢官方資訊',
           terrain: '未知',
         };
-      }).slice(0, 5); // 最多只顯示 5 個
+      }).sort((a: Place, b: Place) => a.distance - b.distance);
 
       setRealPlaces(transformedPlaces);
 
