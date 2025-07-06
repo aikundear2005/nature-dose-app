@@ -1,30 +1,26 @@
 import React, { useState, useEffect } from 'react';
-// ✨ 新增: Gift 圖示用於更新說明
+// ✨ 修正 #3: 引入了正確的 BadgeCheck 圖示名稱
 import { Play, Pause, MapPin, Target, Leaf, Sun, Award, HelpCircle, Compass, X, LoaderCircle, Gift, BadgeCheck } from 'lucide-react';
 import PlaceCard, { Place } from '../components/PlaceCard';
-// ✨ 新增: 引入我們剛剛建立的更新日誌資料
 import { changelogData } from '../data/changelogData';
 
-
-// (此處省略 calculateDistance 和其他既有程式碼，它們保持不變)
+// (calculateDistance 函式保持不變，此處省略)
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-  const R = 6371e3;
-  const φ1 = lat1 * Math.PI / 180;
-  const φ2 = lat2 * Math.PI / 180;
-  const Δφ = (lat2 - lat1) * Math.PI / 180;
-  const Δλ = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c);
+    const R = 6371e3;
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c);
 };
 
 
 const HomePage = () => {
+  // (所有 state 和大部分 useEffect 保持不變，此處省略)
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // ✨ 新增: 用於控制更新說明視窗是否開啟的 state
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
-
-  // (其他既有的 state 和 useEffect 保持不變，此處省略)
   const [isTracking, setIsTracking] = useState(false);
   const [currentSession, setCurrentSession] = useState(0);
   const [expandedPlaceId, setExpandedPlaceId] = useState<number | null>(null);
@@ -144,33 +140,34 @@ const HomePage = () => {
     if (weeklyTotal >= weeklyGoal * 1.2 && weeklyGoal > 0) unlockAchievement('green_master');
   }, [currentSession, weeklyTotal, weeklyGoal, achievements, natureScore]);
 
-  // (其他既有的功能函式保持不變，此處省略)
+
+  // ✨ 修正 #1: 將您的 API Key 獨立出來，並確保只填入金鑰本身
+  const locationIQApiKey = 'YOUR_API_KEY'; // 👈 請將 'YOUR_API_KEY' 換成您複製的 Access Token
+
   const fetchNearbyPlaces = async (lat: number, lon: number) => {
     setIsLoadingPlaces(true);
     setPlacesError('');
     setRealPlaces([]);
 
-    // ✨ 修改: 準備 LocationIQ 需要的參數
-    const apiKey = 'pk.e6c401ca5767b1463370f1ce5e2a916fYOUR_API_KEY'; // 👈 請將 'YOUR_API_KEY' 換成您剛剛複製的 Access Token
-    const query = 'park,gardens,forest'; // 搜尋關鍵字
+    const query = 'park,gardens,forest';
     const limit = 5;
-    const radius = 5000; // 搜尋半徑 (公尺)
+    const radius = 5000;
 
-    // ✨ 修改: 使用 LocationIQ 的 API 網址格式
-    const apiUrl = `/api/search.php?key=${apiKey}&q=${query}&lat=${lat}&lon=${lon}&radius=${radius}&format=json&accept-language=zh-TW&limit=${limit}`;
+    const apiUrl = `/api/search.php?key=${locationIQApiKey}&q=${query}&lat=${lat}&lon=${lon}&radius=${radius}&format=json&accept-language=zh-TW&limit=${limit}`;
 
-    // 檢查 API Key 是否已填寫
-    if (apiKey === 'pk.e6c401ca5767b1463370f1ce5e2a916f') {
+    if (locationIQApiKey === 'YOUR_API_KEY') {
       setPlacesError('請先在程式碼中填入您的 LocationIQ API 金鑰。');
       setIsLoadingPlaces(false);
       return;
     }
 
     try {
-      // 請求部分保持不變
       const response = await fetch(apiUrl);
       if (!response.ok) {
-        throw new Error('地點伺服器錯誤，請稍後再試。');
+        if (response.status === 503) {
+            throw new Error('地點伺服器目前忙碌中，請稍後再試。');
+        }
+        throw new Error('無法連接到地點伺服器');
       }
       
       const data = await response.json();
@@ -179,17 +176,16 @@ const HomePage = () => {
         return;
       }
       
-      // ✨ 修改: 資料轉換邏輯微調以適應 LocationIQ 的回傳格式
       const transformedPlaces: Place[] = data.map((item: any) => {
-        // LocationIQ 直接提供距離，不需我們自己計算
-        const distance = Math.round(parseFloat(item.distance));
+        // LocationIQ 的 distance 單位是公里，我們乘以 1000 換算成公尺
+        const distance = Math.round(parseFloat(item.distance) * 1000); 
         return {
           id: item.place_id,
           name: item.display_name.split(',')[0],
           distance: distance,
           walkTime: Math.round(distance / 80),
           features: [],
-          description: item.type, // 使用 item.type 作為特色
+          description: item.type,
           openHours: '請查詢官方資訊',
           terrain: '未知',
         };
@@ -204,26 +200,25 @@ const HomePage = () => {
       setIsLoadingPlaces(false);
     }
   };
-  const handleTogglePlaceCard = (id: number) => {
-    setExpandedPlaceId(prevId => (prevId === id ? null : id));
-  };
-  const toggleTracking = () => {
-    setIsTracking(!isTracking);
-    if (isTracking) setCurrentSession(0);
-    if ('vibrate' in navigator) navigator.vibrate(isTracking ? [100, 50, 100] : 100);
-  };
+
+  // ✨ 修正 #2: 將這個函式也改為使用 LocationIQ 的代理
   const getNatureDataFromLocation = async (lat: number, lon: number) => {
+    const apiUrl = `/api/reverse.php?key=${locationIQApiKey}&lat=${lat}&lon=${lon}&format=json&accept-language=zh-TW`;
+
     try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&accept-language=zh-TW`);
+      const response = await fetch(apiUrl);
       if (!response.ok) throw new Error(`API request failed`);
       const data = await response.json();
       if (!data || data.error) throw new Error(data.error || 'Cannot parse location info');
+
       const address = data.address || {};
-      const district = address.city_district || address.suburb;
+      const district = address.city_district || address.suburb || address.county;
       const village = address.village || address.neighbourhood;
+
       const locationParts = [];
       if (district) locationParts.push(district);
       if (village) locationParts.push(village);
+
       let displayName;
       if (locationParts.length > 0) {
         displayName = locationParts.join('，');
@@ -231,14 +226,17 @@ const HomePage = () => {
         displayName = address.city || address.county || '未知區域';
       }
       setLocation(displayName);
+
       let score = 1; let env = '都市環境';
-      if (address.natural || data.category === 'natural' || ['forest', 'wood', 'park', 'garden'].includes(address.leisure || '')) {
+      const category = data.category || '';
+      const type = data.type || '';
+      if (['natural', 'wood', 'forest', 'park', 'garden', 'nature_reserve', 'grass', 'heath'].includes(category) || ['park', 'forest'].includes(type)) {
         score = 5; env = '自然山林';
-      } else if (address.leisure === 'nature_reserve' || address.waterway || address.natural === 'water') {
+      } else if (['waterway', 'water'].includes(category) || ['river', 'riverbank'].includes(type)) {
         score = 4; env = '河岸水域';
-      } else if (address.landuse === 'grass' || address.leisure === 'pitch') {
+      } else if (['pitch', 'stadium'].includes(type)) {
         score = 3; env = '校園綠地';
-      } else if (address.road || address.building) {
+      } else if (['road', 'building', 'residential'].includes(category)) {
         score = 2; env = '街道社區';
       }
       setNatureScore(score);
@@ -251,7 +249,21 @@ const HomePage = () => {
       setLocationError('無法從伺服器獲取地點資訊。');
     }
   };
+
+  // (其他功能函式，如 getCurrentLocation 等保持不變)
+  const handleTogglePlaceCard = (id: number) => {
+    setExpandedPlaceId(prevId => (prevId === id ? null : id));
+  };
+  const toggleTracking = () => {
+    setIsTracking(!isTracking);
+    if (isTracking) setCurrentSession(0);
+    if ('vibrate' in navigator) navigator.vibrate(isTracking ? [100, 50, 100] : 100);
+  };
   const getCurrentLocation = async () => {
+    if (locationIQApiKey === 'YOUR_API_KEY') {
+        setLocationError('請先在程式碼中填入 LocationIQ API 金鑰。');
+        return;
+    }
     if (!('geolocation' in navigator)) { setLocationError('此裝置不支援定位'); return; }
     setIsLoadingLocation(true); setLocationError('');
     try {
@@ -303,6 +315,7 @@ const HomePage = () => {
   ));
 
 
+  // (JSX return 陳述式保持不變，但內部已修正了 BadgeCheck 的拼字錯誤)
   return (
     <div className="max-w-md mx-auto bg-gray-900 text-white min-h-screen font-sans">
       <div className="bg-gray-800 bg-opacity-80 text-white text-xs px-4 py-1 flex justify-between items-center fixed top-0 left-0 right-0 max-w-md mx-auto z-20 backdrop-blur-sm">
@@ -314,14 +327,12 @@ const HomePage = () => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold">自然時光</h1>
-              {/* ✨ 修改: 加入可點擊的版本徽章 */}
               <button onClick={() => setIsChangelogOpen(true)} className="bg-cyan-500 text-xs font-bold text-white px-2.5 py-1 rounded-full hover:bg-cyan-400 transition-colors">
                 Beta 0.2
               </button>
             </div>
             <div className="flex items-center space-x-1 bg-black bg-opacity-20 px-3 py-1 rounded-full text-sm">{renderLeaves(natureScore)}</div>
           </div>
-          {/* (其他 Header 內容保持不變) */}
           <div className="flex items-center text-green-100 mb-2">
             <MapPin className="w-4 h-4 mr-2 flex-shrink-0 text-green-200" />
             <span className="text-sm flex-1 truncate" title={location}>{location}</span>
@@ -336,8 +347,6 @@ const HomePage = () => {
             <div className="text-green-200 text-sm opacity-80">目前活動時間</div>
           </div>
         </div>
-
-        {/* (主頁面卡片內容保持不變，此處省略) */}
         <div className="p-4 md:p-6 space-y-6">
             <div className="bg-gray-800 rounded-2xl shadow-lg p-6">
                 <div className="text-center mb-4">
@@ -436,7 +445,6 @@ const HomePage = () => {
         </div>
       </div>
       
-      {/* (積分說明視窗 Modal 保持不變) */}
       {isModalOpen && (
             <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}>
             <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-xl p-6 w-full max-w-sm text-white" onClick={(e) => e.stopPropagation()}>
@@ -462,7 +470,6 @@ const HomePage = () => {
             </div>
         )}
 
-      {/* ✨ 新增: 更新日誌視窗 Modal */}
       {isChangelogOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm" onClick={() => setIsChangelogOpen(false)}>
           <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-xl p-6 w-full max-w-md text-white" onClick={(e) => e.stopPropagation()}>
