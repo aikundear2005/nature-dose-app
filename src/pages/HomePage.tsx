@@ -145,19 +145,6 @@ const HomePage = () => {
     setPlacesError('');
     setRealPlaces([]);
 
-    const query = 'park,garden,forest,nature_reserve,recreation_ground,leisure';
-    const limit = 20; // 稍微增加 API 回傳的數量，以便有更多結果可以過濾
-
-    const viewbox_radius = 0.02; // 約 2km
-    const viewbox = [
-      lon - viewbox_radius,
-      lat + viewbox_radius,
-      lon + viewbox_radius,
-      lat - viewbox_radius
-    ].join(',');
-
-    const apiUrl = `/api/search.php?key=${locationIQApiKey}&q=${query}&viewbox=${viewbox}&bounded=1&format=json&accept-language=zh-TW&limit=${limit}`;
-
     if (locationIQApiKey === 'YOUR_API_KEY' || !locationIQApiKey) {
       setPlacesError('請先在程式碼中填入您的 LocationIQ API 金鑰。');
       setIsLoadingPlaces(false);
@@ -165,16 +152,86 @@ const HomePage = () => {
     }
 
     try {
-      const response = await fetch(apiUrl);
-      if (!response.ok) {
-        throw new Error('地點伺服器錯誤或請求格式有誤。');
-      }
+      // ✨ 修正 #1: 定義我們要分開查詢的類別
+      const queries = ['park', 'garden', 'forest', 'nature_reserve'];
       
-      const data = await response.json();
-      if (!data || data.length === 0) {
-        setPlacesError('在您附近找不到任何標記的地點。');
+      // ✨ 修正 #2: 為每一個類別建立一個 API 請求的 Promise
+      const requests = queries.map(query => {
+        const viewbox_radius = 0.02; // 約 2km
+        const viewbox = [
+          lon - viewbox_radius,
+          lat + viewbox_radius,
+          lon + viewbox_radius,
+          lat - viewbox_radius
+        ].join(',');
+        const apiUrl = `/api/search.php?key=${locationIQApiKey}&q=${query}&viewbox=${viewbox}&bounded=1&format=json&accept-language=zh-TW&limit=10`;
+        return fetch(apiUrl).then(response => {
+          if (!response.ok) {
+            // 如果任何一個請求失敗，就讓它靜默失敗，不中斷整個流程
+            console.error(`Failed to fetch for query: ${query}`);
+            return []; // 回傳空陣列
+          }
+          return response.json();
+        });
+      });
+
+      // ✨ 修正 #3: 使用 Promise.all 等待所有請求完成
+      const results = await Promise.all(requests);
+      
+      // ✨ 修正 #4: 將所有請求回來的結果（陣列的陣列）合併為一個單一陣列
+      const allPlaces = results.flat();
+
+      if (!allPlaces || allPlaces.length === 0) {
+        setPlacesError('在您附近找不到任何符合的地點。');
         return;
       }
+      
+      // ✨ 修正 #5: 去除重複的地點 (有些地點可能同時是 park 又是 leisure)
+      const uniquePlaces = Array.from(new Map(allPlaces.map(item => [item.place_id, item])).values());
+
+
+      // --- 我們之前寫的過濾邏輯保持不變，現在作用於合併後的結果 ---
+      const blacklistedNameKeywords = ['里', '鄰', '閒置土地'];
+      const whitelistedTypes = ['park', 'garden', 'forest', 'nature_reserve', 'dog_park', 'recreation_ground', 'playground', 'pitch'];
+
+      const filteredData = uniquePlaces.filter((item: any) => {
+        const name = item.name || item.display_name.split(',')[0];
+        const type = item.type;
+        if (blacklistedNameKeywords.some(keyword => name.includes(keyword))) {
+          return false;
+        }
+        return whitelistedTypes.includes(type);
+      });
+      
+      if (filteredData.length === 0) {
+        setPlacesError('過濾後，在您附近找不到符合的公園或綠地。');
+        return;
+      }
+      // --- 過濾邏輯結束 ---
+
+      const transformedPlaces: Place[] = filteredData.map((item: any) => {
+        const distance = calculateDistance(lat, lon, parseFloat(item.lat), parseFloat(item.lon));
+        return {
+          id: item.place_id,
+          name: item.name || item.display_name.split(',')[0],
+          distance: distance,
+          walkTime: Math.round(distance / 80),
+          features: [],
+          description: item.type,
+          openHours: '請查詢官方資訊',
+          terrain: '未知',
+        };
+      }).sort((a: Place, b: Place) => a.distance - b.distance);
+
+      setRealPlaces(transformedPlaces.slice(0, 10)); // 最後最多顯示 10 個結果
+
+    } catch (error: any) {
+      console.error("Fetch nearby places error:", error);
+      setPlacesError(error.message || '抓取附近地點時發生未知錯誤。');
+    } finally {
+      setIsLoadingPlaces(false);
+    }
+  };
 
       // --- ✨ 新增：資料過濾邏輯 ---
       const blacklistedNameKeywords = ['里', '鄰', '閒置土地'];
