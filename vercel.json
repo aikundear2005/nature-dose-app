@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://us1.locationiq.com/v1/:path*"
+      "destination": "https://api.foursquare.com/v3/:path*"
     }
   ]
 }
