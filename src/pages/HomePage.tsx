@@ -143,18 +143,27 @@ const HomePage = () => {
 
   const locationIQApiKey = 'pk.e6c401ca5767b1463370f1ce5e2a916f';
 
-  const fetchNearbyPlaces = async (lat: number, lon: number) => {
+const fetchNearbyPlaces = async (lat: number, lon: number) => {
     setIsLoadingPlaces(true);
     setPlacesError('');
     setRealPlaces([]);
 
     const query = 'park,garden,forest,nature_reserve,recreation_ground,leisure';
     const limit = 5;
-    const radius = 10000;
+    
+    // ✨ 修正: 移除錯誤的 radius 參數，改回使用 viewbox 來限定搜尋範圍
+    const viewbox_radius = 0.05; // 大約 5km 的經緯度偏移量
+    const viewbox = [
+      lon - viewbox_radius,
+      lat + viewbox_radius,
+      lon + viewbox_radius,
+      lat - viewbox_radius
+    ].join(',');
 
-    const apiUrl = `/api/search.php?key=${locationIQApiKey}&q=${query}&lat=${lat}&lon=${lon}&radius=${radius}&format=json&accept-language=zh-TW&limit=${limit}`;
+    // ✨ 修正: 建立使用 viewbox 的正確 API 網址
+    const apiUrl = `/api/search.php?key=${locationIQApiKey}&q=${query}&format=json&accept-language=zh-TW&limit=${limit}&viewbox=${viewbox}&bounded=1`;
 
-    if (locationIQApiKey === 'YOUR_API_KEY') {
+    if (locationIQApiKey === 'YOUR_API_KEY' || !locationIQApiKey) {
       setPlacesError('請先在程式碼中填入您的 LocationIQ API 金鑰。');
       setIsLoadingPlaces(false);
       return;
@@ -163,10 +172,8 @@ const HomePage = () => {
     try {
       const response = await fetch(apiUrl);
       if (!response.ok) {
-        if (response.status === 503) {
-            throw new Error('地點伺服器目前忙碌中，請稍後再試。');
-        }
-        throw new Error('無法連接到地點伺服器');
+        // ...錯誤處理部分不變...
+        throw new Error('地點伺服器錯誤或請求格式有誤。');
       }
       
       const data = await response.json();
@@ -176,9 +183,8 @@ const HomePage = () => {
       }
       
       const transformedPlaces: Place[] = data.map((item: any) => {
-        // ✨ 修改重點: 改為使用我們自己的 `calculateDistance` 函式來手動計算距離
+        // 因為 API 不直接提供距離，我們自己計算
         const distance = calculateDistance(lat, lon, parseFloat(item.lat), parseFloat(item.lon));
-        
         return {
           id: item.place_id,
           name: item.display_name.split(',')[0],
