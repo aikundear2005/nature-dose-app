@@ -15,6 +15,7 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
 };
 
 const HomePage = () => {
+  // (State 和 useEffect 保持不變)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
@@ -85,13 +86,11 @@ const HomePage = () => {
     }, 60000);
     return () => clearInterval(interval);
   }, [isTracking, currentSession, natureScore]);
-
   useEffect(() => { localStorage.setItem('natureDose_todayTotal', JSON.stringify(todayTotal)); }, [todayTotal]);
   useEffect(() => { localStorage.setItem('natureDose_weeklyTotal', JSON.stringify(weeklyTotal)); }, [weeklyTotal]);
   useEffect(() => { localStorage.setItem('natureDose_dailyRecords', JSON.stringify(dailyRecords)); }, [dailyRecords]);
   useEffect(() => { if (lastVisitedDate) localStorage.setItem('natureDose_lastVisitedDate', lastVisitedDate); }, [lastVisitedDate]);
   useEffect(() => { localStorage.setItem('natureDose_achievements', JSON.stringify(achievements)); }, [achievements]);
-
   useEffect(() => {
     const getTodayString = () => new Date().toLocaleDateString('sv');
     const todayString = getTodayString();
@@ -103,7 +102,6 @@ const HomePage = () => {
     }
     setLastVisitedDate(todayString);
   }, []);
-
   useEffect(() => {
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
@@ -124,7 +122,6 @@ const HomePage = () => {
     }
     setChartData(last7Days);
   }, [dailyRecords, todayTotal]);
-
   useEffect(() => {
     const unlockAchievement = (achievementId: string) => {
       setAchievements(prevAchievements =>
@@ -142,8 +139,10 @@ const HomePage = () => {
     if (weeklyTotal >= weeklyGoal * 1.2 && weeklyGoal > 0) unlockAchievement('green_master');
   }, [currentSession, weeklyTotal, weeklyGoal, achievements, natureScore]);
 
-  const foursquareApiKey = 'YOUR_FOURSQUARE_API_KEY'; 
+  // ✨ 請將此處換成您自己的 Foursquare API 金鑰
+  const foursquareApiKey = 'fsq33zqMPLkyEGsEeJqLOezzwN6Hze5gnZ4qP0Gi8O0AREM=';
 
+  // ✨ 使用 Foursquare 正確的 /places/nearby 功能
   const fetchNearbyPlaces = async (lat: number, lon: number) => {
     setIsLoadingPlaces(true);
     setPlacesError('');
@@ -152,17 +151,12 @@ const HomePage = () => {
     const params = new URLSearchParams({
       ll: `${lat},${lon}`,
       radius: '2000',
-      categories: '16032',
-      limit: '10'
+      categories: '16032', // 16032 是「公園」的 Foursquare 類別代碼
+      limit: '10',
+      sort: 'DISTANCE' // 按距離排序
     });
     
-    const apiUrl = `/api/places/search?${params.toString()}`;
-
-    if (foursquareApiKey === 'fsq33zqMPLkyEGsEeJqLOezzwN6Hze5gnZ4qP0Gi8O0AREM=' || !foursquareApiKey) {
-      setPlacesError('請先在程式碼中填入您的 Foursquare API 金鑰。');
-      setIsLoadingPlaces(false);
-      return;
-    }
+    const apiUrl = `/api/places/nearby?${params.toString()}`;
 
     try {
       const response = await fetch(apiUrl, {
@@ -174,7 +168,7 @@ const HomePage = () => {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Foursquare API request failed with status:', response.status, errorText);
+        console.error('Foursquare API (nearby) request failed with status:', response.status, errorText);
         throw new Error('地點伺服器錯誤或請求格式有誤。');
       }
       
@@ -206,13 +200,14 @@ const HomePage = () => {
     }
   };
 
+  // ✨ 這個函式也統一使用 Foursquare 的 /places/nearby 功能來判斷當前環境
   const getNatureDataFromLocation = async (lat: number, lon: number) => {
     const params = new URLSearchParams({
       ll: `${lat},${lon}`,
-      radius: '100',
-      limit: '1'
+      radius: '100', // 只搜尋最近 100 公尺
+      limit: '1' // 只需要最近的一個點
     });
-    const apiUrl = `/api/places/search?${params.toString()}`;
+    const apiUrl = `/api/places/nearby?${params.toString()}`;
 
     try {
       const response = await fetch(apiUrl, { headers: { 'Authorization': foursquareApiKey, 'Accept': 'application/json' } });
@@ -224,16 +219,18 @@ const HomePage = () => {
       
       const data = await response.json();
       
-      const locationName = data.context?.neighborhood?.name || data.context?.locality?.name || data.context?.region?.name || '未知區域';
+      const locationName = data.results[0]?.location?.neighborhood?.[0] || data.results[0]?.location?.locality || '未知區域';
       setLocation(locationName);
 
       let score = 2; let env = '街道社區';
       const mainCategory = data.results[0]?.categories[0];
       if(mainCategory) {
           const categoryId = mainCategory.id;
+          // 16000: Recreation (戶外與休閒)
           if (categoryId.toString().startsWith('16')) { 
               score = 4; env = '公園綠地';
           }
+          // 16019: Forest
           if (categoryId === 16019) {
               score = 5; env = '自然山林';
           }
@@ -249,9 +246,9 @@ const HomePage = () => {
     }
   };
 
-  // ✨ 這個函式就是之前遺失的
   const getCurrentLocation = async () => {
-    if (foursquareApiKey === 'fsq33zqMPLkyEGsEeJqLOezzwN6Hze5gnZ4qP0Gi8O0AREM=' || !foursquareApiKey) {
+    // ✨ 修正：這裡的檢查條件應該永遠是比對預設的佔位文字
+    if (foursquareApiKey === 'YOUR_FOURSQUARE_API_KEY' || !foursquareApiKey) {
         setLocationError('請先在程式碼中填入您的 Foursquare API 金鑰。');
         return;
     }
@@ -285,6 +282,7 @@ const HomePage = () => {
     }
   };
   
+  // (其他所有 helper functions 和 JSX return 陳述式都保持不變)
   const handleTogglePlaceCard = (id: number) => {
     setExpandedPlaceId(prevId => (prevId === id ? null : id));
   };
@@ -313,6 +311,7 @@ const HomePage = () => {
   const renderLeaves = (score: number) => Array.from({ length: 5 }, (_, i) => (
     <Leaf key={i} className={`w-4 h-4 transition-colors ${i < score ? 'text-green-400 fill-current' : 'text-gray-500'}`} />
   ));
+
 
   return (
     <div className="max-w-md mx-auto bg-gray-900 text-white min-h-screen font-sans">
