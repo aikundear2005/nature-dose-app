@@ -145,26 +145,28 @@ const HomePage = () => {
     setPlacesError('');
     setRealPlaces([]);
 
-    const apiKey = 'fsq33p1+Aqb9pm2RO9vj6N3OavpjKvLylW7+C1J+hRXG0Q8='; // 👈 請將此處換成您剛剛複製的 Foursquare API Key
+    // 請確認這裡是您自己的 Foursquare API 金鑰
+    const apiKey = 'fsq33zqMPLkyEGsEeJqLOezzwN6Hze5gnZ4qP0Gi8O0AREM='; 
 
     // Foursquare API 的參數
     const params = new URLSearchParams({
       ll: `${lat},${lon}`,
       radius: '2000', // 搜尋半徑 (公尺)
-      categories: '16032', // 16032 是 Foursquare API 中「公園」的類別代碼
+      categories: '16032', // 16032 是「公園」的類別代碼
       limit: '10'
     });
     
+    // ✨ 正確的 Foursquare API 路徑
     const apiUrl = `/api/places/search?${params.toString()}`;
 
-    if (apiKey === 'fsq33p1+Aqb9pm2RO9vj6N3OavpjKvLylW7+C1J+hRXG0Q8=' || !apiKey) {
+    if (apiKey === 'fsq33zqMPLkyEGsEeJqLOezzwN6Hze5gnZ4qP0Gi8O0AREM=' || !apiKey) {
       setPlacesError('請先在程式碼中填入您的 Foursquare API 金鑰。');
       setIsLoadingPlaces(false);
       return;
     }
 
     try {
-      // Foursquare 要求將金鑰放在請求的 Headers 中
+      // ✨ Foursquare 要求將金鑰放在請求的 Headers 中
       const response = await fetch(apiUrl, {
         headers: {
           'Authorization': apiKey,
@@ -173,7 +175,6 @@ const HomePage = () => {
       });
 
       if (!response.ok) {
-        // 如果請求失敗，我們可以在 console 中看到更詳細的 status code
         console.error('Foursquare API request failed with status:', response.status, await response.text());
         throw new Error('地點伺服器錯誤或請求格式有誤。');
       }
@@ -185,7 +186,6 @@ const HomePage = () => {
         return;
       }
       
-      // 將 Foursquare 回傳的資料轉換成我們需要的 Place[] 格式
       const transformedPlaces: Place[] = data.results.map((item: any) => {
         return {
           id: item.fsq_id,
