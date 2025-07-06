@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// ✨ 修正 #3: 引入了正確的 BadgeCheck 圖示名稱
+// ✨ 修正: 引入了正確的 BadgeCheck 圖示名稱
 import { Play, Pause, MapPin, Target, Leaf, Sun, Award, HelpCircle, Compass, X, LoaderCircle, Gift, BadgeCheck } from 'lucide-react';
 import PlaceCard, { Place } from '../components/PlaceCard';
 import { changelogData } from '../data/changelogData';
@@ -141,8 +141,7 @@ const HomePage = () => {
   }, [currentSession, weeklyTotal, weeklyGoal, achievements, natureScore]);
 
 
-  // ✨ 修正 #1: 將您的 API Key 獨立出來，並確保只填入金鑰本身
-  const locationIQApiKey = 'YOUR_API_KEY'; // 👈 請將 'YOUR_API_KEY' 換成您複製的 Access Token
+  const locationIQApiKey = 'pk.e6c401ca5767b1463370f1ce5e2a916f';
 
   const fetchNearbyPlaces = async (lat: number, lon: number) => {
     setIsLoadingPlaces(true);
@@ -155,6 +154,7 @@ const HomePage = () => {
 
     const apiUrl = `/api/search.php?key=${locationIQApiKey}&q=${query}&lat=${lat}&lon=${lon}&radius=${radius}&format=json&accept-language=zh-TW&limit=${limit}`;
 
+    // ✨ 修正: 這裡的檢查條件應該永遠是 'YOUR_API_KEY'
     if (locationIQApiKey === 'YOUR_API_KEY') {
       setPlacesError('請先在程式碼中填入您的 LocationIQ API 金鑰。');
       setIsLoadingPlaces(false);
@@ -177,7 +177,6 @@ const HomePage = () => {
       }
       
       const transformedPlaces: Place[] = data.map((item: any) => {
-        // LocationIQ 的 distance 單位是公里，我們乘以 1000 換算成公尺
         const distance = Math.round(parseFloat(item.distance) * 1000); 
         return {
           id: item.place_id,
@@ -201,7 +200,6 @@ const HomePage = () => {
     }
   };
 
-  // ✨ 修正 #2: 將這個函式也改為使用 LocationIQ 的代理
   const getNatureDataFromLocation = async (lat: number, lon: number) => {
     const apiUrl = `/api/reverse.php?key=${locationIQApiKey}&lat=${lat}&lon=${lon}&format=json&accept-language=zh-TW`;
 
@@ -250,18 +248,10 @@ const HomePage = () => {
     }
   };
 
-  // (其他功能函式，如 getCurrentLocation 等保持不變)
-  const handleTogglePlaceCard = (id: number) => {
-    setExpandedPlaceId(prevId => (prevId === id ? null : id));
-  };
-  const toggleTracking = () => {
-    setIsTracking(!isTracking);
-    if (isTracking) setCurrentSession(0);
-    if ('vibrate' in navigator) navigator.vibrate(isTracking ? [100, 50, 100] : 100);
-  };
   const getCurrentLocation = async () => {
+    // ✨ 修正: 這裡的檢查條件也應該是 'YOUR_API_KEY'
     if (locationIQApiKey === 'YOUR_API_KEY') {
-        setLocationError('請先在程式碼中填入 LocationIQ API 金鑰。');
+        setLocationError('請先在程式碼中填入您的 LocationIQ API 金鑰。');
         return;
     }
     if (!('geolocation' in navigator)) { setLocationError('此裝置不支援定位'); return; }
@@ -293,6 +283,16 @@ const HomePage = () => {
       setIsLoadingLocation(false);
     }
   };
+  
+  // (其他功能函式保持不變)
+  const handleTogglePlaceCard = (id: number) => {
+    setExpandedPlaceId(prevId => (prevId === id ? null : id));
+  };
+  const toggleTracking = () => {
+    setIsTracking(!isTracking);
+    if (isTracking) setCurrentSession(0);
+    if ('vibrate' in navigator) navigator.vibrate(isTracking ? [100, 50, 100] : 100);
+  };
   const manualLocationSelect = () => {
     const locations = [ { name: '澄清湖', score: 4, env: '風景區' }, { name: '高雄美術館', score: 3, env: '都會公園' }, ];
     const randomLocation = locations[Math.floor(Math.random() * locations.length)];
@@ -315,7 +315,6 @@ const HomePage = () => {
   ));
 
 
-  // (JSX return 陳述式保持不變，但內部已修正了 BadgeCheck 的拼字錯誤)
   return (
     <div className="max-w-md mx-auto bg-gray-900 text-white min-h-screen font-sans">
       <div className="bg-gray-800 bg-opacity-80 text-white text-xs px-4 py-1 flex justify-between items-center fixed top-0 left-0 right-0 max-w-md mx-auto z-20 backdrop-blur-sm">
