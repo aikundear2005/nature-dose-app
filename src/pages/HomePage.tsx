@@ -158,7 +158,7 @@ const HomePage = () => {
     
     const apiUrl = `/api/places/search?${params.toString()}`;
 
-    if (foursquareApiKey === 'YOUR_FOURSQUARE_API_KEY' || !foursquareApiKey) {
+    if (foursquareApiKey === 'fsq33zqMPLkyEGsEeJqLOezzwN6Hze5gnZ4qP0Gi8O0AREM=' || !foursquareApiKey) {
       setPlacesError('請先在程式碼中填入您的 Foursquare API 金鑰。');
       setIsLoadingPlaces(false);
       return;
