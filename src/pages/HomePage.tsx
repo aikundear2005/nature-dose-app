@@ -141,7 +141,7 @@ const HomePage = () => {
 
   // ✨ 金鑰已根據您提供的內容填寫完畢
   const foursquareApiKey = 'fsq33zqMPLkyEGsEeJqLOezzwN6Hze5gnZ4qP0Gi8O0AREM=';
-  const mapTilerApiKey = '4Des2qYeiKQsDEv3EDxn';
+  const mapTilerApiKey = '8fb5GMz9Y10bWBZvZL3I';
 
   const fetchFromFoursquare = async (lat: number, lon: number): Promise<Place[]> => {
     console.log('Trying Foursquare API...');
