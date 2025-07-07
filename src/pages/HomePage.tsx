@@ -173,34 +173,40 @@ const HomePage = () => {
     }));
   };
 
-  // ✨ 使用 MapTiler 正確的 Data API 來查詢 POI
+  // ✨ 使用 MapTiler 正確的 Geocoding API 來查詢 POI
   const fetchFromMapTiler = async (lat: number, lon: number): Promise<Place[]> => {
-    console.log('Trying MapTiler API with Data endpoint...');
+    console.log('Trying MapTiler API with Geocoding endpoint...');
     if (mapTilerApiKey === 'YOUR_MAPTILER_API_KEY' || !mapTilerApiKey) throw new Error('MapTiler API Key is missing.');
     
-    // 查詢 osm POI 資料，篩選 class 為 park 或 leisure
-    const apiUrl = `/api/maptiler/osm/v1/features.json?#${lon},${lat},14&class=park,leisure&key=${mapTilerApiKey}`;
+    const query = 'park'; // 我們一次只搜尋一個最主要的類別
+    const bbox = [lon - 0.02, lat - 0.02, lon + 0.02, lat + 0.02].join(',');
     
+    // ✨ 修正: 使用 Geocoding API 的正確路徑 /api/maptiler/geocoding/...
+    const apiUrl = `/api/maptiler/geocoding/${query}.json?key=${mapTilerApiKey}&bbox=${bbox}&language=zh-Hant&limit=10`;
+
     const response = await fetch(apiUrl);
     if (!response.ok) {
         const errorText = await response.text();
-        console.error('MapTiler Data API request failed with status:', response.status, errorText);
-        throw new Error('MapTiler Data API failed');
+        console.error('MapTiler Geocoding API request failed with status:', response.status, errorText);
+        throw new Error('MapTiler API failed');
     }
 
     const data = await response.json();
     if (!data.features || data.features.length === 0) return [];
 
-    return data.features.map((item: any) => ({
-      id: item.id,
-      name: item.properties.name || '未命名公園',
-      distance: calculateDistance(lat, lon, item.geometry.coordinates[1], item.geometry.coordinates[0]),
-      walkTime: Math.round(calculateDistance(lat, lon, item.geometry.coordinates[1], item.geometry.coordinates[0]) / 80),
-      features: [],
-      description: item.properties.class || '公園綠地',
-      openHours: '請查詢官方資訊',
-      terrain: '未知',
-    })).sort((a,b) => a.distance - b.distance);
+    return data.features
+      // 再次過濾，只保留類型真的是 park 或 garden 的結果
+      .filter((item: any) => item.place_type.includes('poi') && (item.properties.category?.includes('park') || item.properties.category?.includes('garden')))
+      .map((item: any) => ({
+        id: item.id,
+        name: item.text,
+        distance: calculateDistance(lat, lon, item.center[1], item.center[0]),
+        walkTime: Math.round(calculateDistance(lat, lon, item.center[1], item.center[0]) / 80),
+        features: [],
+        description: item.properties?.category || '公園綠地',
+        openHours: '請查詢官方資訊',
+        terrain: '未知',
+      })).sort((a,b) => a.distance - b.distance);
   };
   
   const fetchNearbyPlaces = async (lat: number, lon: number) => {
@@ -213,7 +219,7 @@ const HomePage = () => {
       if (places.length > 0) {
         setRealPlaces(places);
         console.log('Successfully fetched from MapTiler');
-        return;
+        return; 
       }
       throw new Error('MapTiler returned no results.');
     } catch (maptilerError) {
@@ -235,26 +241,27 @@ const HomePage = () => {
     }
   };
   
-  // ✨ 同樣使用 MapTiler Data API 來取得當前位置資訊
+  // ✨ 同樣使用 MapTiler 正確的 Geocoding API 來反向查詢地址
   const getNatureDataFromLocation = async (lat: number, lon: number) => {
     if (mapTilerApiKey === 'YOUR_MAPTILER_API_KEY' || !mapTilerApiKey) throw new Error('MapTiler key is missing');
-    const apiUrl = `/api/maptiler/osm/v1/features.json?#${lon},${lat},16&key=${mapTilerApiKey}`;
+    
+    // ✨ 修正: 使用 Geocoding API 的正確路徑
+    const apiUrl = `/api/maptiler/geocoding/${lon},${lat}.json?key=${mapTilerApiKey}&language=zh-Hant`;
     try {
       const response = await fetch(apiUrl);
       if (!response.ok) throw new Error('API request failed');
       const data = await response.json();
       
-      const closestFeature = data.features[0];
-      const locationName = closestFeature?.properties?.name || '未知區域';
+      const findContext = (idPrefix: string) => data.features[0]?.context.find((c: any) => c.id.startsWith(idPrefix))?.text;
+      const locationName = findContext('district') || findContext('place') || '未知區域';
       setLocation(locationName);
 
       let score = 2; let env = '街道社區';
-      const placeClass = closestFeature?.properties?.class;
-      if (['park', 'garden', 'forest', 'nature_reserve', 'wood', 'grass', 'heath'].includes(placeClass)) {
-        score = 4; env = '公園綠地';
-        if (placeClass === 'forest' || placeClass === 'wood') {
+      const placeType = data.features[0]?.place_type[0];
+      if (['park', 'garden', 'forest', 'nature_reserve'].includes(placeType)) {
+          score = 4; env = '公園綠地';
+      } else if (placeType === 'poi' && (data.features[0]?.text.includes('森林') || data.features[0]?.text.includes('山'))) {
           score = 5; env = '自然山林';
-        }
       }
       setNatureScore(score);
       setCurrentEnvironment(env);
@@ -302,6 +309,7 @@ const HomePage = () => {
     }
   };
   
+  // (其他所有 helper functions 和 JSX return 陳述式都保持不變)
   const handleTogglePlaceCard = (id: number) => {
     setExpandedPlaceId(prevId => (prevId === id ? null : id));
   };

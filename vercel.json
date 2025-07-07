@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/maptiler/:path*",
-      "destination": "https://api.maptiler.com/data/v1/:path*"
+      "destination": "https://api.maptiler.com/:path*"
     },
     {
       "source": "/api/foursquare/:path*",
