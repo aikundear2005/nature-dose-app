@@ -3,10 +3,6 @@
     {
       "source": "/api/maptiler/:path*",
       "destination": "https://api.maptiler.com/:path*"
-    },
-    {
-      "source": "/api/foursquare/:path*",
-      "destination": "https://api.foursquare.com/v3/:path*"
     }
   ]
 }

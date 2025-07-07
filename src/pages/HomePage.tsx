@@ -15,12 +15,11 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
 };
 
 const HomePage = () => {
-  // (State 和 useEffect 保持不變)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [currentSession, setCurrentSession] = useState(0);
-  const [expandedPlaceId, setExpandedPlaceId] = useState<number | null>(null);
+  const [expandedPlaceId, setExpandedPlaceId] = useState<string | number | null>(null);
   const [realPlaces, setRealPlaces] = useState<Place[]>([]);
   const [isLoadingPlaces, setIsLoadingPlaces] = useState(false);
   const [placesError, setPlacesError] = useState('');
@@ -139,169 +138,186 @@ const HomePage = () => {
     if (weeklyTotal >= weeklyGoal * 1.2 && weeklyGoal > 0) unlockAchievement('green_master');
   }, [currentSession, weeklyTotal, weeklyGoal, achievements, natureScore]);
 
-  const foursquareApiKey = 'fsq33zqMPLkyEGsEeJqLOezzwN6Hze5gnZ4qP0Gi8O0AREM=';
-  const mapTilerApiKey = '8fb5GMz9Y10bWBZvZL3I';
+  
 
-  const fetchFromFoursquare = async (lat: number, lon: number): Promise<Place[]> => {
-    console.log('Trying Foursquare API...');
-    if (foursquareApiKey === 'YOUR_FOURSQUARE_API_KEY' || !foursquareApiKey) throw new Error('Foursquare API Key is missing.');
-    
-    const params = new URLSearchParams({
-      ll: `${lat},${lon}`,
-      radius: '2000',
-      categories: '16032',
-      limit: '10',
-      sort: 'DISTANCE'
-    });
-    const apiUrl = `/api/foursquare/places/search?${params.toString()}`;
+  const fetchNearbyPlaces = async (lat: number, lon: number) => {
+  setIsLoadingPlaces(true);
+  setPlacesError('');
+  setRealPlaces([]);
 
-    const response = await fetch(apiUrl, { headers: { 'Authorization': foursquareApiKey, 'Accept': 'application/json' } });
-    if (!response.ok) throw new Error(`Foursquare API failed with status ${response.status}`);
+  // 新的 API 路徑，指向我們自己的 serverless function
+  const apiUrl = `/api/getNearbyPlaces?lat=${lat}&lon=${lon}`;
+
+  try {
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+        const errorData = await response.json();
+        console.error('getNearbyPlaces API request failed:', errorData.details);
+        throw new Error('地點伺服器錯誤');
+    }
+
+    const data = await response.json();
+    if (!data.features || data.features.length === 0) {
+      setPlacesError('在您附近找不到符合的公園。');
+      return;
+    }
+
+    const transformedPlaces: Place[] = data.features
+      .map((item: any) => ({
+          id: item.id,
+          name: item.text_en || item.text,
+          distance: calculateDistance(lat, lon, item.center[1], item.center[0]),
+          walkTime: Math.round(calculateDistance(lat, lon, item.center[1], item.center[0]) / 80),
+          features: [],
+          description: item.properties?.category || '戶外景點',
+          openHours: '請查詢官方資訊',
+          terrain: '未知',
+        })).sort((a,b) => a.distance - b.distance);
+
+    setRealPlaces(transformedPlaces);
+
+  } catch (error: any) {
+    console.error("Fetch nearby places error:", error);
+    setPlacesError(error.message || '抓取附近地點時發生未知錯誤。');
+  } finally {
+    setIsLoadingPlaces(false);
+  }
+};
+
+  
+  const getNatureDataFromLocation = async (lat: number, lon: number) => {
+  // 新的 API 路徑
+  const apiUrl = `/api/getNatureData?lat=${lat}&lon=${lon}`;
+  try {
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('getNatureData API request failed:', errorData.details);
+      throw new Error('API request failed');
+    }
     
     const data = await response.json();
-    if (!data.results || data.results.length === 0) return [];
+    const locationName = data.features[0]?.text || '未知區域';
+    setLocation(locationName);
 
-    return data.results.map((item: any) => ({
-      id: item.fsq_id,
-      name: item.name,
-      distance: item.distance,
-      walkTime: Math.round(item.distance / 80),
-      features: [],
-      description: item.categories[0]?.name || '戶外景點',
-      openHours: '請查詢官方資訊',
-      terrain: '未知',
-    }));
-  };
-
-  // ✨ 使用 MapTiler 正確的 Geocoding API 來查詢 POI
-  const fetchFromMapTiler = async (lat: number, lon: number): Promise<Place[]> => {
-    console.log('Trying MapTiler API with multiple queries...');
-    if (mapTilerApiKey === 'YOUR_MAPTILER_API_KEY' || !mapTilerApiKey) throw new Error('MapTiler API Key is missing.');
-    
-    // ✨ 修正 #1: 我們要搜尋的多個關鍵字
-    const queries = ['park', 'garden', 'forest', 'nature'];
-    
-    // ✨ 修正 #2: 為每一個關鍵字建立一個 API 請求
-    const requests = queries.map(async (query) => {
-      try {
-        const viewbox_radius = 0.05; // 擴大到約 5km
-        const viewbox = [
-          lon - viewbox_radius,
-          lat + viewbox_radius,
-          lon + viewbox_radius,
-          lat - viewbox_radius
-        ].join(',');
-        
-        const apiUrl = `/api/maptiler/geocoding/${query}.json?key=${mapTilerApiKey}&bbox=${bbox}&limit=5`;
-
-        const response = await fetch(apiUrl);
-        if (!response.ok) {
-          console.error(`MapTiler API call for query '${query}' failed with status ${response.status}`);
-          return [];
-        }
-        return await response.json();
-      } catch (error) {
-        console.error(`Error fetching MapTiler for query '${query}':`, error);
-        return [];
-      }
-    });
-
-    // 等待所有請求完成
-    const results = await Promise.all(requests);
-    
-    // 將所有回傳的 features 合併為一個陣列
-    const allFeatures = results.map(result => result.features || []).flat();
-
-    if (allFeatures.length === 0) return [];
-
-    // 去除重複的地點
-    const uniqueFeatures = Array.from(new Map(allFeatures.map(item => [item.id, item])).values());
-    
-    // 轉換成我們需要的 Place[] 格式
-    return uniqueFeatures
-      .map((item: any) => ({
-        id: item.id,
-        name: item.text,
-        distance: calculateDistance(lat, lon, item.center[1], item.center[0]),
-        walkTime: Math.round(calculateDistance(lat, lon, item.center[1], item.center[0]) / 80),
-        features: [],
-        description: item.properties?.category || '戶外景點',
-        openHours: '請查詢官方資訊',
-        terrain: '未知',
-      })).sort((a,b) => a.distance - b.distance);
-  };
-  
-  // ✨ 同樣使用 MapTiler 正確的 Geocoding API 來反向查詢地址
-  const getNatureDataFromLocation = async (lat: number, lon: number) => {
-    if (mapTilerApiKey === 'YOUR_MAPTILER_API_KEY' || !mapTilerApiKey) throw new Error('MapTiler key is missing');
-
-    // ✨ 修正: 移除了無效的 &language=zh-Hant 參數
-    const apiUrl = `/api/maptiler/geocoding/${lon},${lat}.json?key=${mapTilerApiKey}`;
-
-    try {
-      const response = await fetch(apiUrl);
-      if (!response.ok) throw new Error('API request failed');
-      const data = await response.json();
-      
-      const findContext = (idPrefix: string) => data.features[0]?.context.find((c: any) => c.id.startsWith(idPrefix))?.text;
-      const locationName = findContext('district') || findContext('place') || '未知區域';
-      setLocation(locationName);
-
-      let score = 2; let env = '街道社區';
-      const placeType = data.features[0]?.place_type[0];
-      if (['park', 'garden', 'forest', 'nature_reserve'].includes(placeType)) {
-          score = 4; env = '公園綠地';
-      } else if (placeType === 'poi' && (data.features[0]?.text.includes('森林') || data.features[0]?.text.includes('山'))) {
-          score = 5; env = '自然山林';
-      }
-      setNatureScore(score);
-      setCurrentEnvironment(env);
-    } catch (apiError) {
-      console.error('Location API Error:', apiError);
-      setLocation('無法解析詳細地點');
-      setNatureScore(2);
-      setCurrentEnvironment('未知環境');
-      setLocationError('無法從伺服器獲取地點資訊。');
+    let score = 2; let env = '街道社區';
+    const features = data.features || [];
+    // 根據 Geocoding V2 API 的回傳格式調整
+    const mainFeatureType = features[0]?.place_type[0];
+    if (['park', 'garden', 'forest', 'nature_reserve'].includes(mainFeatureType)) {
+        score = 4; env = '公園綠地';
+    } else if (['river', 'lake'].includes(mainFeatureType)) {
+        score = 4; env = '河岸水域';
+    } else if (['university', 'college', 'school'].includes(mainFeatureType)) {
+        score = 3; env = '校園綠地';
     }
-  };
+    setNatureScore(score);
+    setCurrentEnvironment(env);
+  } catch (apiError) {
+    console.error('Location API Error:', apiError);
+    setLocation('無法解析詳細地點');
+    setNatureScore(2);
+    setCurrentEnvironment('未知環境');
+    setLocationError('無法從伺服器獲取地點資訊。');
+  }
+};
 
   const getCurrentLocation = async () => {
-    if ((foursquareApiKey === 'YOUR_FOURSQUARE_API_KEY') || (mapTilerApiKey === 'YOUR_MAPTILER_API_KEY')) {
-        setLocationError('請先在程式碼中填入所有 API 金鑰。');
+    // 安全性檢查：確保 API 金鑰不是預設值
+    if (mapTilerApiKey.includes('YOUR_MAPTILER_API_KEY')) {
+        setLocationError('請先在程式碼中填入 MapTiler API 金鑰。');
         return;
     }
-    if (!('geolocation' in navigator)) { setLocationError('此裝置不支援定位'); return; }
-    setIsLoadingLocation(true); setLocationError('');
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true, timeout: 20000, maximumAge: 60000,
-        });
+    // 瀏覽器支援性檢查
+    if (!('geolocation' in navigator)) {
+      setLocationError('此裝置不支援定位功能。');
+      return;
+    }
+
+    setIsLoadingLocation(true);
+    setLocationError('');
+    console.log('開始定位程序...');
+
+    // 定位選項：高精確度 vs 低精確度
+    const highAccuracyOptions: PositionOptions = {
+      enableHighAccuracy: true,
+      timeout: 15000, // 高精確度給予 15 秒時間
+      maximumAge: 0,
+    };
+
+    const lowAccuracyOptions: PositionOptions = {
+      enableHighAccuracy: false,
+      timeout: 10000, // 低精確度應更快，給予 10 秒
+      maximumAge: 60000, // 低精確度可接受 1 分鐘內的快取
+    };
+
+    // 將定位 API 包裝成 Promise 的輔助函式
+    const getPosition = (options: PositionOptions): Promise<GeolocationPosition> => {
+      return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, options);
       });
+    };
+
+    try {
+      // 步驟 1: 嘗試使用高精確度定位
+      console.log('嘗試使用「高精確度」模式定位...');
+      const position = await getPosition(highAccuracyOptions);
+      console.log('高精確度定位成功！');
+      
       const { latitude, longitude } = position.coords;
+      // 定位成功後，並行抓取地點資料和附近景點
       await Promise.all([
         getNatureDataFromLocation(latitude, longitude),
         fetchNearbyPlaces(latitude, longitude)
       ]);
       if ('vibrate' in navigator) navigator.vibrate([50, 50, 50]);
-    } catch (error: any) {
-      let errorMessage = '無法取得位置';
-      if(error && typeof error === 'object' && 'code' in error){
-        switch (error.code) {
-          case 1: errorMessage = '位置權限被拒絕'; break;
-          case 2: errorMessage = '位置資訊無法取得'; break;
-          case 3: errorMessage = '定位逾時'; break;
-          default: errorMessage = `未知定位錯誤`;
-        }
+
+    } catch (highAccuracyError: any) {
+      console.warn('高精確度定位失敗:', highAccuracyError.message);
+
+      // 如果是權限問題，直接報錯並終止
+      if (highAccuracyError.code === 1) { // PERMISSION_DENIED
+        setLocationError('您已拒絕位置存取權限。請至瀏覽器設定中重新開啟。');
+        setLocation('無法自動定位');
+        setIsLoadingLocation(false);
+        return;
       }
-      setLocationError(errorMessage); setLocation('無法自動定位');
+      
+      // 步驟 2: 如果高精確度失敗，自動降級嘗試低精確度模式
+      console.log('自動降級，嘗試使用「低精確度」模式定位...');
+      try {
+        const position = await getPosition(lowAccuracyOptions);
+        console.log('低精確度定位成功！');
+
+        const { latitude, longitude } = position.coords;
+        await Promise.all([
+          getNatureDataFromLocation(latitude, longitude),
+          fetchNearbyPlaces(latitude, longitude)
+        ]);
+        if ('vibrate' in navigator) navigator.vibrate([50]);
+
+      } catch (lowAccuracyError: any) {
+        console.error('低精確度定位也失敗:', lowAccuracyError.message);
+        let errorMessage = '無法取得您的位置，請稍後在訊號較佳處再試。';
+        // 根據最終的錯誤碼提供更精確的訊息
+        if (lowAccuracyError && typeof lowAccuracyError === 'object' && 'code' in lowAccuracyError) {
+          switch (lowAccuracyError.code) {
+            case 1: errorMessage = '位置權限已被拒絕。'; break;
+            case 2: errorMessage = '位置資訊暫時無法取得，請檢查網路或 GPS 訊號。'; break;
+            case 3: errorMessage = '定位請求超時，請檢查您的網路連線。'; break;
+            default: errorMessage = `發生未知的定位錯誤 (${lowAccuracyError.code})。`;
+          }
+        }
+        setLocationError(errorMessage);
+        setLocation('無法自動定位');
+      }
     } finally {
       setIsLoadingLocation(false);
+      console.log('定位程序結束。');
     }
   };
   
-  // (其他所有 helper functions 和 JSX return 陳述式都保持不變)
-  const handleTogglePlaceCard = (id: number) => {
+  const handleTogglePlaceCard = (id: string | number) => {
     setExpandedPlaceId(prevId => (prevId === id ? null : id));
   };
   const toggleTracking = () => {
@@ -329,7 +345,6 @@ const HomePage = () => {
   const renderLeaves = (score: number) => Array.from({ length: 5 }, (_, i) => (
     <Leaf key={i} className={`w-4 h-4 transition-colors ${i < score ? 'text-green-400 fill-current' : 'text-gray-500'}`} />
   ));
-
 
   return (
     <div className="max-w-md mx-auto bg-gray-900 text-white min-h-screen font-sans">
