@@ -178,11 +178,11 @@ const HomePage = () => {
     console.log('Trying MapTiler API with Geocoding endpoint...');
     if (mapTilerApiKey === 'YOUR_MAPTILER_API_KEY' || !mapTilerApiKey) throw new Error('MapTiler API Key is missing.');
     
-    const query = 'park'; // 我們一次只搜尋一個最主要的類別
+    const query = 'park';
     const bbox = [lon - 0.02, lat - 0.02, lon + 0.02, lat + 0.02].join(',');
     
-    // ✨ 修正: 使用 Geocoding API 的正確路徑 /api/maptiler/geocoding/...
-    const apiUrl = `/api/maptiler/geocoding/${query}.json?key=${mapTilerApiKey}&bbox=${bbox}&language=zh-Hant&limit=10`;
+    // ✨ 修正: 移除了無效的 &language=zh-Hant 參數
+    const apiUrl = `/api/maptiler/geocoding/${query}.json?key=${mapTilerApiKey}&bbox=${bbox}&limit=10`;
 
     const response = await fetch(apiUrl);
     if (!response.ok) {
@@ -195,7 +195,6 @@ const HomePage = () => {
     if (!data.features || data.features.length === 0) return [];
 
     return data.features
-      // 再次過濾，只保留類型真的是 park 或 garden 的結果
       .filter((item: any) => item.place_type.includes('poi') && (item.properties.category?.includes('park') || item.properties.category?.includes('garden')))
       .map((item: any) => ({
         id: item.id,
@@ -244,9 +243,10 @@ const HomePage = () => {
   // ✨ 同樣使用 MapTiler 正確的 Geocoding API 來反向查詢地址
   const getNatureDataFromLocation = async (lat: number, lon: number) => {
     if (mapTilerApiKey === 'YOUR_MAPTILER_API_KEY' || !mapTilerApiKey) throw new Error('MapTiler key is missing');
-    
-    // ✨ 修正: 使用 Geocoding API 的正確路徑
-    const apiUrl = `/api/maptiler/geocoding/${lon},${lat}.json?key=${mapTilerApiKey}&language=zh-Hant`;
+
+    // ✨ 修正: 移除了無效的 &language=zh-Hant 參數
+    const apiUrl = `/api/maptiler/geocoding/${lon},${lat}.json?key=${mapTilerApiKey}`;
+
     try {
       const response = await fetch(apiUrl);
       if (!response.ok) throw new Error('API request failed');
