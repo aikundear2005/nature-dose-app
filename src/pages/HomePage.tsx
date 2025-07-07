@@ -139,11 +139,9 @@ const HomePage = () => {
     if (weeklyTotal >= weeklyGoal * 1.2 && weeklyGoal > 0) unlockAchievement('green_master');
   }, [currentSession, weeklyTotal, weeklyGoal, achievements, natureScore]);
 
-  // ✨ 步驟一：我已經將您的 Foursquare 金鑰貼上
+  // ✨ 金鑰已根據您提供的內容填寫完畢
   const foursquareApiKey = 'fsq33zqMPLkyEGsEeJqLOezzwN6Hze5gnZ4qP0Gi8O0AREM=';
-  
-  // ✨ 步驟二：請務必手動將 YOUR_MAPTILER_API_KEY 換成您自己的 MapTiler 金鑰
-  const mapTilerApiKey = 'YOUR_MAPTILER_API_KEY';
+  const mapTilerApiKey = '4Des2qYeiKQsDEv3EDxn';
 
   const fetchFromFoursquare = async (lat: number, lon: number): Promise<Place[]> => {
     console.log('Trying Foursquare API...');
@@ -211,7 +209,7 @@ const HomePage = () => {
       if (placesFromMapTiler.length > 0) {
         setRealPlaces(placesFromMapTiler);
         console.log('Successfully fetched from MapTiler');
-        return;
+        return; 
       }
       throw new Error('MapTiler returned no results.');
     } catch (maptilerError) {
@@ -246,6 +244,8 @@ const HomePage = () => {
       const placeType = data.features[0]?.place_type[0];
       if (['park', 'garden', 'forest', 'nature_reserve'].includes(placeType)) {
           score = 4; env = '公園綠地';
+      } else if (placeType === 'poi' && (data.features[0]?.text.includes('森林') || data.features[0]?.text.includes('山'))) {
+          score = 5; env = '自然山林';
       }
       setNatureScore(score);
       setCurrentEnvironment(env);
@@ -259,6 +259,7 @@ const HomePage = () => {
   };
 
   const getCurrentLocation = async () => {
+    // ✨ 這裡的檢查條件應該永遠是比對預設的佔位文字
     if ((foursquareApiKey === 'YOUR_FOURSQUARE_API_KEY') || (mapTilerApiKey === 'YOUR_MAPTILER_API_KEY')) {
         setLocationError('請先在程式碼中填入所有 API 金鑰。');
         return;
@@ -293,6 +294,7 @@ const HomePage = () => {
     }
   };
   
+  // (其他所有 helper functions 和 JSX return 陳述式都保持不變)
   const handleTogglePlaceCard = (id: number) => {
     setExpandedPlaceId(prevId => (prevId === id ? null : id));
   };
