@@ -175,69 +175,60 @@ const HomePage = () => {
 
   // ✨ 使用 MapTiler 正確的 Geocoding API 來查詢 POI
   const fetchFromMapTiler = async (lat: number, lon: number): Promise<Place[]> => {
-    console.log('Trying MapTiler API with Geocoding endpoint...');
+    console.log('Trying MapTiler API with multiple queries...');
     if (mapTilerApiKey === 'YOUR_MAPTILER_API_KEY' || !mapTilerApiKey) throw new Error('MapTiler API Key is missing.');
     
-    const query = 'park';
-    const bbox = [lon - 0.02, lat - 0.02, lon + 0.02, lat + 0.02].join(',');
+    // ✨ 修正 #1: 我們要搜尋的多個關鍵字
+    const queries = ['park', 'garden', 'forest', 'nature'];
     
-    // ✨ 修正: 移除了無效的 &language=zh-Hant 參數
-    const apiUrl = `/api/maptiler/geocoding/${query}.json?key=${mapTilerApiKey}&bbox=${bbox}&limit=10`;
+    // ✨ 修正 #2: 為每一個關鍵字建立一個 API 請求
+    const requests = queries.map(async (query) => {
+      try {
+        const viewbox_radius = 0.05; // 擴大到約 5km
+        const viewbox = [
+          lon - viewbox_radius,
+          lat + viewbox_radius,
+          lon + viewbox_radius,
+          lat - viewbox_radius
+        ].join(',');
+        
+        const apiUrl = `/api/maptiler/geocoding/${query}.json?key=${mapTilerApiKey}&bbox=${bbox}&limit=5`;
 
-    const response = await fetch(apiUrl);
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('MapTiler Geocoding API request failed with status:', response.status, errorText);
-        throw new Error('MapTiler API failed');
-    }
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+          console.error(`MapTiler API call for query '${query}' failed with status ${response.status}`);
+          return [];
+        }
+        return await response.json();
+      } catch (error) {
+        console.error(`Error fetching MapTiler for query '${query}':`, error);
+        return [];
+      }
+    });
 
-    const data = await response.json();
-    if (!data.features || data.features.length === 0) return [];
+    // 等待所有請求完成
+    const results = await Promise.all(requests);
+    
+    // 將所有回傳的 features 合併為一個陣列
+    const allFeatures = results.map(result => result.features || []).flat();
 
-    return data.features
-      .filter((item: any) => item.place_type.includes('poi') && (item.properties.category?.includes('park') || item.properties.category?.includes('garden')))
+    if (allFeatures.length === 0) return [];
+
+    // 去除重複的地點
+    const uniqueFeatures = Array.from(new Map(allFeatures.map(item => [item.id, item])).values());
+    
+    // 轉換成我們需要的 Place[] 格式
+    return uniqueFeatures
       .map((item: any) => ({
         id: item.id,
         name: item.text,
         distance: calculateDistance(lat, lon, item.center[1], item.center[0]),
         walkTime: Math.round(calculateDistance(lat, lon, item.center[1], item.center[0]) / 80),
         features: [],
-        description: item.properties?.category || '公園綠地',
+        description: item.properties?.category || '戶外景點',
         openHours: '請查詢官方資訊',
         terrain: '未知',
       })).sort((a,b) => a.distance - b.distance);
-  };
-  
-  const fetchNearbyPlaces = async (lat: number, lon: number) => {
-    setIsLoadingPlaces(true);
-    setPlacesError('');
-    setRealPlaces([]);
-
-    try {
-      const places = await fetchFromMapTiler(lat, lon);
-      if (places.length > 0) {
-        setRealPlaces(places);
-        console.log('Successfully fetched from MapTiler');
-        return; 
-      }
-      throw new Error('MapTiler returned no results.');
-    } catch (maptilerError) {
-      console.warn('MapTiler failed, trying fallback: Foursquare...', maptilerError);
-      try {
-        const places = await fetchFromFoursquare(lat, lon);
-        if (places.length > 0) {
-          setRealPlaces(places);
-          console.log('Successfully fetched from fallback Foursquare');
-          return;
-        }
-        throw new Error('Fallback Foursquare also returned no results.');
-      } catch (foursquareError) {
-        console.error('All APIs failed.', foursquareError);
-        setPlacesError('很抱歉，所有地點伺服器都無法連線或找不到地點。');
-      }
-    } finally {
-      setIsLoadingPlaces(false);
-    }
   };
   
   // ✨ 同樣使用 MapTiler 正確的 Geocoding API 來反向查詢地址
