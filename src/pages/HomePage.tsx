@@ -223,99 +223,91 @@ const HomePage = () => {
 };
 
   const getCurrentLocation = async () => {
-    // 安全性檢查：確保 API 金鑰不是預設值
-    if (mapTilerApiKey.includes('YOUR_MAPTILER_API_KEY')) {
-        setLocationError('請先在程式碼中填入 MapTiler API 金鑰。');
-        return;
-    }
-    // 瀏覽器支援性檢查
-    if (!('geolocation' in navigator)) {
-      setLocationError('此裝置不支援定位功能。');
+  // 瀏覽器支援性檢查
+  if (!('geolocation' in navigator)) {
+    setLocationError('此裝置不支援定位功能。');
+    return;
+  }
+
+  setIsLoadingLocation(true);
+  setLocationError('');
+  console.log('開始定位程序...');
+
+  // 定位選項：高精確度 vs 低精確度
+  const highAccuracyOptions: PositionOptions = {
+    enableHighAccuracy: true,
+    timeout: 15000, // 高精確度給予 15 秒時間
+    maximumAge: 0,
+  };
+
+  const lowAccuracyOptions: PositionOptions = {
+    enableHighAccuracy: false,
+    timeout: 10000, // 低精確度應更快，給予 10 秒
+    maximumAge: 60000, // 低精確度可接受 1 分鐘內的快取
+  };
+
+  // 將定位 API 包裝成 Promise 的輔助函式
+  const getPosition = (options: PositionOptions): Promise<GeolocationPosition> => {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, options);
+    });
+  };
+
+  try {
+    // 步驟 1: 嘗試使用高精確度定位
+    console.log('嘗試使用「高精確度」模式定位...');
+    const position = await getPosition(highAccuracyOptions);
+    console.log('高精確度定位成功！');
+    
+    const { latitude, longitude } = position.coords;
+    // 定位成功後，並行抓取地點資料和附近景點
+    await Promise.all([
+      getNatureDataFromLocation(latitude, longitude),
+      fetchNearbyPlaces(latitude, longitude)
+    ]);
+    if ('vibrate' in navigator) navigator.vibrate([50, 50, 50]);
+
+  } catch (highAccuracyError: any) {
+    console.warn('高精確度定位失敗:', highAccuracyError.message);
+
+    if (highAccuracyError.code === 1) { // PERMISSION_DENIED
+      setLocationError('您已拒絕位置存取權限。請至瀏覽器設定中重新開啟。');
+      setLocation('無法自動定位');
+      setIsLoadingLocation(false);
       return;
     }
-
-    setIsLoadingLocation(true);
-    setLocationError('');
-    console.log('開始定位程序...');
-
-    // 定位選項：高精確度 vs 低精確度
-    const highAccuracyOptions: PositionOptions = {
-      enableHighAccuracy: true,
-      timeout: 15000, // 高精確度給予 15 秒時間
-      maximumAge: 0,
-    };
-
-    const lowAccuracyOptions: PositionOptions = {
-      enableHighAccuracy: false,
-      timeout: 10000, // 低精確度應更快，給予 10 秒
-      maximumAge: 60000, // 低精確度可接受 1 分鐘內的快取
-    };
-
-    // 將定位 API 包裝成 Promise 的輔助函式
-    const getPosition = (options: PositionOptions): Promise<GeolocationPosition> => {
-      return new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, options);
-      });
-    };
-
+    
+    console.log('自動降級，嘗試使用「低精確度」模式定位...');
     try {
-      // 步驟 1: 嘗試使用高精確度定位
-      console.log('嘗試使用「高精確度」模式定位...');
-      const position = await getPosition(highAccuracyOptions);
-      console.log('高精確度定位成功！');
-      
+      const position = await getPosition(lowAccuracyOptions);
+      console.log('低精確度定位成功！');
+
       const { latitude, longitude } = position.coords;
-      // 定位成功後，並行抓取地點資料和附近景點
       await Promise.all([
         getNatureDataFromLocation(latitude, longitude),
         fetchNearbyPlaces(latitude, longitude)
       ]);
-      if ('vibrate' in navigator) navigator.vibrate([50, 50, 50]);
+      if ('vibrate' in navigator) navigator.vibrate([50]);
 
-    } catch (highAccuracyError: any) {
-      console.warn('高精確度定位失敗:', highAccuracyError.message);
-
-      // 如果是權限問題，直接報錯並終止
-      if (highAccuracyError.code === 1) { // PERMISSION_DENIED
-        setLocationError('您已拒絕位置存取權限。請至瀏覽器設定中重新開啟。');
-        setLocation('無法自動定位');
-        setIsLoadingLocation(false);
-        return;
-      }
-      
-      // 步驟 2: 如果高精確度失敗，自動降級嘗試低精確度模式
-      console.log('自動降級，嘗試使用「低精確度」模式定位...');
-      try {
-        const position = await getPosition(lowAccuracyOptions);
-        console.log('低精確度定位成功！');
-
-        const { latitude, longitude } = position.coords;
-        await Promise.all([
-          getNatureDataFromLocation(latitude, longitude),
-          fetchNearbyPlaces(latitude, longitude)
-        ]);
-        if ('vibrate' in navigator) navigator.vibrate([50]);
-
-      } catch (lowAccuracyError: any) {
-        console.error('低精確度定位也失敗:', lowAccuracyError.message);
-        let errorMessage = '無法取得您的位置，請稍後在訊號較佳處再試。';
-        // 根據最終的錯誤碼提供更精確的訊息
-        if (lowAccuracyError && typeof lowAccuracyError === 'object' && 'code' in lowAccuracyError) {
-          switch (lowAccuracyError.code) {
-            case 1: errorMessage = '位置權限已被拒絕。'; break;
-            case 2: errorMessage = '位置資訊暫時無法取得，請檢查網路或 GPS 訊號。'; break;
-            case 3: errorMessage = '定位請求超時，請檢查您的網路連線。'; break;
-            default: errorMessage = `發生未知的定位錯誤 (${lowAccuracyError.code})。`;
-          }
+    } catch (lowAccuracyError: any) {
+      console.error('低精確度定位也失敗:', lowAccuracyError.message);
+      let errorMessage = '無法取得您的位置，請稍後在訊號較佳處再試。';
+      if (lowAccuracyError && typeof lowAccuracyError === 'object' && 'code' in lowAccuracyError) {
+        switch (lowAccuracyError.code) {
+          case 1: errorMessage = '位置權限已被拒絕。'; break;
+          case 2: errorMessage = '位置資訊暫時無法取得，請檢查網路或 GPS 訊號。'; break;
+          case 3: errorMessage = '定位請求超時，請檢查您的網路連線。'; break;
+          default: errorMessage = `發生未知的定位錯誤 (${lowAccuracyError.code})。`;
         }
-        setLocationError(errorMessage);
-        setLocation('無法自動定位');
       }
-    } finally {
-      setIsLoadingLocation(false);
-      console.log('定位程序結束。');
+      setLocationError(errorMessage);
+      setLocation('無法自動定位');
     }
-  };
+  } finally {
+    setIsLoadingLocation(false);
+    console.log('定位程序結束。');
+  }
+};
   
   const handleTogglePlaceCard = (id: string | number) => {
     setExpandedPlaceId(prevId => (prevId === id ? null : id));
