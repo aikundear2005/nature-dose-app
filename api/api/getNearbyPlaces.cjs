@@ -19,6 +19,7 @@ module.exports = async (req, res) => {
     const apiResponse = await fetch(apiUrl);
     const data = await apiResponse.json();
     
+    // 設置CORS頭，允許所有來源訪問，這在API路由中是個好習慣
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.status(apiResponse.status).json(data);
   } catch (error) {
