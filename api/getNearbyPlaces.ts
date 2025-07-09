@@ -1,18 +1,15 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { type VercelRequest, type VercelResponse } from '@vercel/node';
 
-export default async function handler(
-  request: VercelRequest,
-  response: VercelResponse,
-) {
-  const { lat, lon } = request.query;
+export default async (req: VercelRequest, res: VercelResponse) => {
+  const { lat, lon } = req.query;
   const apiKey = process.env.MAPTILER_API_KEY;
 
   if (!lat || !lon) {
-    return response.status(400).json({ error: 'Latitude and longitude are required' });
+    return res.status(400).json({ error: 'Latitude and longitude are required' });
   }
   
   if (!apiKey) {
-    return response.status(500).json({ error: 'API key is not configured' });
+    return res.status(500).json({ error: 'API key is not configured on the server' });
   }
 
   const query = 'park';
@@ -20,13 +17,15 @@ export default async function handler(
 
   try {
     const apiResponse = await fetch(apiUrl);
-    if (!apiResponse.ok) {
-      const errorText = await apiResponse.text();
-      return response.status(apiResponse.status).json({ error: 'Failed to fetch from MapTiler Search API', details: errorText });
-    }
     const data = await apiResponse.json();
-    return response.status(200).json(data);
+    
+    if (!apiResponse.ok) {
+      // 如果 MapTiler 回傳錯誤，也將其傳遞給前端
+      return res.status(apiResponse.status).json(data);
+    }
+    
+    return res.status(200).json(data);
   } catch (error) {
-    return response.status(500).json({ error: 'Internal Server Error' });
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
-}
+};
