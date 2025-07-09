@@ -1,6 +1,6 @@
-import { type VercelRequest, type VercelResponse } from '@vercel/node';
+const fetch = require('node-fetch');
 
-export default async (req: VercelRequest, res: VercelResponse) => {
+module.exports = async (req, res) => {
   const { lat, lon } = req.query;
   const apiKey = process.env.MAPTILER_API_KEY;
 
@@ -19,13 +19,9 @@ export default async (req: VercelRequest, res: VercelResponse) => {
     const apiResponse = await fetch(apiUrl);
     const data = await apiResponse.json();
     
-    if (!apiResponse.ok) {
-      // 如果 MapTiler 回傳錯誤，也將其傳遞給前端
-      return res.status(apiResponse.status).json(data);
-    }
-    
-    return res.status(200).json(data);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.status(apiResponse.status).json(data);
   } catch (error) {
-    return res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 };
