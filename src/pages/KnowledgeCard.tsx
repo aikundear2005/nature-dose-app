@@ -1,6 +1,6 @@
 import React from 'react';
 import { Volume2, PlayCircle } from 'lucide-react'; // 引入新的圖示
-import { KnowledgeItem } from '../pages/KnowledgePage';
+import { type KnowledgeItem } from '../types';
 
 // 更新 props，加入 isPlaying 和 onPlaySound
 type KnowledgeCardProps = {

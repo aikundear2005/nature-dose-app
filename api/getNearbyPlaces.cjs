@@ -7,7 +7,7 @@ module.exports = async (req, res) => {
   if (!lat || !lon) {
     return res.status(400).json({ error: 'Latitude and longitude are required' });
   }
-  
+
   if (!apiKey) {
     return res.status(500).json({ error: 'API key is not configured on the server' });
   }
@@ -18,7 +18,7 @@ module.exports = async (req, res) => {
   try {
     const apiResponse = await fetch(apiUrl);
     const data = await apiResponse.json();
-    
+
     // 設置CORS頭，允許所有來源訪問，這在API路由中是個好習慣
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.status(apiResponse.status).json(data);

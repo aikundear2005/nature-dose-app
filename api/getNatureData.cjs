@@ -17,7 +17,7 @@ module.exports = async (req, res) => {
   try {
     const apiResponse = await fetch(apiUrl);
     const data = await apiResponse.json();
-    
+
     // 設置CORS頭
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.status(apiResponse.status).json(data);

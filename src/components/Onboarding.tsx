@@ -10,17 +10,15 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
     // ✨ 修改重點: 我們還原 flex 佈局來做置中，並移除 overflow-y-auto
     <div className="fixed inset-0 bg-gray-900 text-white z-50 flex flex-col items-center justify-center p-8 text-center">
       <div className="max-w-md">
-
         {/* 我們為每個區塊加上了特定的 data-test-id，方便在 CSS 中單獨調整間距 */}
         <div data-test-id="onboarding-icon" className="mb-6">
           <Leaf className="w-16 h-16 text-green-400 mx-auto" strokeWidth={1.5} />
         </div>
-        
+
         <div data-test-id="onboarding-title" className="mb-3">
-            <h1 className="text-4xl font-bold text-gray-100">給自己一點自然時光</h1>
+          <h1 className="text-4xl font-bold text-gray-100">給自己一點自然時光</h1>
         </div>
-       
-        
+
         <div data-test-id="onboarding-feature-box" className="my-8">
           <div className="bg-gray-800 rounded-lg p-6">
             <p className="text-gray-400 mb-4">每天只需要...</p>
@@ -32,9 +30,9 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
         </div>
 
         <div data-test-id="onboarding-description" className="mb-8">
-            <p className="text-gray-300 text-lg">就能為身心帶來意想不到的改變</p>
+          <p className="text-gray-300 text-lg">就能為身心帶來意想不到的改變</p>
         </div>
-        
+
         <div data-test-id="onboarding-checklist" className="my-8">
           <div className="space-y-4 text-left inline-block">
             <div className="flex items-center gap-3">
@@ -51,9 +49,9 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
             </div>
           </div>
         </div>
-        
+
         <div data-test-id="onboarding-ready-text" className="mb-10">
-            <p className="text-xl text-gray-100 font-semibold">準備好了嗎？</p>
+          <p className="text-xl text-gray-100 font-semibold">準備好了嗎？</p>
         </div>
 
         <button

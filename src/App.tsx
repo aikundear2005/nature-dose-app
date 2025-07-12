@@ -23,7 +23,9 @@ function App() {
   }
 
   return (
-    <div className="pb-20"> {/* 稍微增加底部 padding，避免內容被導航列遮擋 */}
+    <div className="pb-20">
+      {' '}
+      {/* 稍微增加底部 padding，避免內容被導航列遮擋 */}
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/knowledge" element={<KnowledgePage />} />

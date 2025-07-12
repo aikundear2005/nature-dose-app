@@ -38,15 +38,19 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
         <SwiperSlide className="flex flex-col items-center justify-center text-center p-8">
           <MapPin className="w-24 h-24 text-blue-500 mb-8" strokeWidth={1.5} />
           <h2 className="text-3xl font-bold text-gray-800 mb-4">不只記錄時間，更在乎品質</h2>
-          <p className="text-lg text-gray-600">App 會根據您所處環境的綠意程度，給予 1-5 分的「自然分數」。</p>
+          <p className="text-lg text-gray-600">
+            App 會根據您所處環境的綠意程度，給予 1-5 分的「自然分數」。
+          </p>
         </SwiperSlide>
 
         {/* 第三頁 */}
         <SwiperSlide className="flex flex-col items-center justify-center text-center p-8">
           <TrendingUp className="w-24 h-24 text-yellow-500 mb-8" strokeWidth={1.5} />
           <h2 className="text-3xl font-bold text-gray-800 mb-4">高品質的戶外時光 = 更高的積分</h2>
-          <p className="text-lg text-gray-600 mb-10">您的積分 = 分鐘數 × 自然分數。在公園裡待 10 分鐘，勝過在街上待 10 分鐘！</p>
-          <button 
+          <p className="text-lg text-gray-600 mb-10">
+            您的積分 = 分鐘數 × 自然分數。在公園裡待 10 分鐘，勝過在街上待 10 分鐘！
+          </p>
+          <button
             onClick={onComplete} // 點擊按鈕時，呼叫從 App.tsx 傳進來的 onComplete 函式
             className="bg-blue-500 text-white py-3 px-8 rounded-full text-xl font-semibold hover:bg-blue-600 transition-colors active:scale-95 shadow-lg"
           >

@@ -74,16 +74,21 @@
 }
 
 @keyframes bounce {
-  0%, 20%, 53%, 80%, 100% {
-    animation-timing-function: cubic-bezier(0.215, 0.610, 0.355, 1.000);
+  0%,
+  20%,
+  53%,
+  80%,
+  100% {
+    animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
     transform: translate3d(0, 0, 0);
   }
-  40%, 43% {
-    animation-timing-function: cubic-bezier(0.755, 0.050, 0.855, 0.060);
+  40%,
+  43% {
+    animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
     transform: translate3d(0, -10px, 0);
   }
   70% {
-    animation-timing-function: cubic-bezier(0.755, 0.050, 0.855, 0.060);
+    animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
     transform: translate3d(0, -5px, 0);
   }
   90% {
@@ -113,7 +118,8 @@
 }
 
 @keyframes wiggle {
-  0%, 7% {
+  0%,
+  7% {
     transform: rotateZ(0);
   }
   15% {
@@ -131,7 +137,8 @@
   35% {
     transform: rotateZ(-4deg);
   }
-  40%, 100% {
+  40%,
+  100% {
     transform: rotateZ(0);
   }
 }
@@ -153,63 +160,58 @@
   .animate-fadeIn {
     animation: fadeIn 0.6s ease-out;
   }
-  
+
   .animate-slideInLeft {
     animation: slideInLeft 0.6s ease-out;
   }
-  
+
   .animate-slideInRight {
     animation: slideInRight 0.6s ease-out;
   }
-  
+
   .animate-scaleIn {
     animation: scaleIn 0.4s ease-out;
   }
-  
+
   .animate-bounce-custom {
     animation: bounce 1s ease-in-out;
   }
-  
+
   .animate-pulse-custom {
     animation: pulse 2s ease-in-out infinite;
   }
-  
+
   .animate-shimmer {
     animation: shimmer 2s linear infinite;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.2),
-      transparent
-    );
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
     background-size: 200px 100%;
   }
-  
+
   .animate-wiggle {
     animation: wiggle 1s ease-in-out;
   }
-  
+
   .animate-gradient {
     animation: gradient 3s ease infinite;
     background-size: 400% 400%;
   }
-  
+
   .animate-delayed-1 {
     animation-delay: 0.1s;
   }
-  
+
   .animate-delayed-2 {
     animation-delay: 0.2s;
   }
-  
+
   .animate-delayed-3 {
     animation-delay: 0.3s;
   }
-  
+
   .animate-delayed-4 {
     animation-delay: 0.4s;
   }
-  
+
   .animate-delayed-5 {
     animation-delay: 0.5s;
   }
@@ -220,31 +222,31 @@
   .btn-primary {
     @apply bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 ease-in-out transform hover:scale-105 active:scale-95;
   }
-  
+
   .btn-secondary {
     @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-all duration-200 ease-in-out;
   }
-  
+
   .card {
     @apply bg-white rounded-lg shadow-md p-6 transition-all duration-300 ease-in-out hover:shadow-lg hover:scale-105;
   }
-  
+
   .card-hover {
     @apply transform transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-xl;
   }
-  
+
   .text-gradient {
     @apply bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent;
   }
-  
+
   .glass-effect {
     @apply bg-white bg-opacity-20 backdrop-blur-lg border border-white border-opacity-30 rounded-lg;
   }
-  
+
   .loading-skeleton {
     @apply bg-gray-300 animate-pulse rounded;
   }
-  
+
   .focus-ring {
     @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
   }
@@ -255,15 +257,15 @@
   .hover-lift {
     @apply transition-transform duration-200 ease-in-out hover:scale-105;
   }
-  
+
   .hover-glow {
     @apply transition-all duration-200 ease-in-out hover:shadow-lg hover:shadow-blue-500/25;
   }
-  
+
   .hover-rotate {
     @apply transition-transform duration-200 ease-in-out hover:rotate-3;
   }
-  
+
   .hover-float {
     @apply transition-transform duration-200 ease-in-out hover:-translate-y-2;
   }
@@ -274,27 +276,27 @@
   html {
     scroll-behavior: smooth;
   }
-  
+
   body {
     @apply font-sans antialiased;
     color: var(--text-primary);
     background-color: var(--background-primary);
   }
-  
+
   /* Custom Scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
   }
-  
+
   ::-webkit-scrollbar-track {
     background: var(--background-secondary);
   }
-  
+
   ::-webkit-scrollbar-thumb {
     background: var(--border-color);
     border-radius: 4px;
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
     background: var(--text-secondary);
   }
@@ -305,20 +307,20 @@
   .loading-dots {
     @apply inline-flex items-center;
   }
-  
+
   .loading-dots::after {
     content: '';
     @apply inline-block w-1 h-1 bg-current rounded-full mr-1;
     animation: loading-dots 1.4s infinite ease-in-out;
   }
-  
+
   .loading-dots::before {
     content: '';
     @apply inline-block w-1 h-1 bg-current rounded-full mr-1;
     animation: loading-dots 1.4s infinite ease-in-out;
     animation-delay: -0.32s;
   }
-  
+
   .loading-dots span {
     @apply w-1 h-1 bg-current rounded-full inline-block;
     animation: loading-dots 1.4s infinite ease-in-out;
@@ -327,7 +329,9 @@
 }
 
 @keyframes loading-dots {
-  0%, 80%, 100% {
+  0%,
+  80%,
+  100% {
     transform: scale(0);
   }
   40% {
@@ -340,57 +344,57 @@
   .no-print {
     display: none !important;
   }
-  
+
   .print-only {
     display: block !important;
   }
-  
+
   body {
     @apply text-black bg-white;
   }
-  
+
   a {
     @apply text-black no-underline;
   }
-  
+
   a::after {
-    content: " (" attr(href) ")";
+    content: ' (' attr(href) ')';
     @apply text-sm text-gray-600;
   }
 }
 /* --- 針對矮螢幕的響應式調整 --- */
 @media (max-height: 750px) {
-  [data-test-id="onboarding-icon"] {
+  [data-test-id='onboarding-icon'] {
     margin-bottom: 1rem; /* 16px */
   }
-  [data-test-id="onboarding-title"] {
+  [data-test-id='onboarding-title'] {
     margin-bottom: 0.5rem; /* 8px */
     font-size: 1.875rem; /* 30px */
     line-height: 2.25rem; /* 36px */
   }
-  [data-test-id="onboarding-subtitle"] {
+  [data-test-id='onboarding-subtitle'] {
     margin-bottom: 1.5rem; /* 24px */
     font-size: 1rem; /* 16px */
     line-height: 1.5rem; /* 24px */
   }
-  [data-test-id="onboarding-feature-box"] {
+  [data-test-id='onboarding-feature-box'] {
     margin-top: 1.5rem; /* 24px */
     margin-bottom: 1.5rem; /* 24px */
   }
-  [data-test-id="onboarding-feature-box"] p {
+  [data-test-id='onboarding-feature-box'] p {
     font-size: 1.5rem; /* 24px */
     line-height: 2rem; /* 32px */
   }
-  [data-test-id="onboarding-description"] {
+  [data-test-id='onboarding-description'] {
     margin-bottom: 1.5rem; /* 24px */
     font-size: 1rem; /* 16px */
     line-height: 1.5rem; /* 24px */
   }
-  [data-test-id="onboarding-checklist"] {
+  [data-test-id='onboarding-checklist'] {
     margin-top: 1.5rem; /* 24px */
     margin-bottom: 1.5rem; /* 24px */
   }
-  [data-test-id="onboarding-ready-text"] {
+  [data-test-id='onboarding-ready-text'] {
     margin-bottom: 2rem; /* 32px */
     font-size: 1.125rem; /* 18px */
     line-height: 1.75rem; /* 28px */
