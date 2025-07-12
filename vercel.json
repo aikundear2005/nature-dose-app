@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/api/maptiler/:path*",
-      "destination": "https://api.maptiler.com/:path*"
-    }
-  ]
-}
