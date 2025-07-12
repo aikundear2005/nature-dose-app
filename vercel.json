@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "functions": {
+    "api/**/*.cjs": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/getNatureData",
+      "destination": "/api/getNatureData.cjs"
+    },
+    {
+      "source": "/api/getNearbyPlaces",
+      "destination": "/api/getNearbyPlaces.cjs"
+    }
+  ]
+}
